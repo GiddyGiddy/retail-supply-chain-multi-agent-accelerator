@@ -4,7 +4,7 @@ import logging
 
 from aiokafka import AIOKafkaConsumer
 
-from src.config.settings import settings
+from src.kafka_config import kafka_client_config
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -14,7 +14,7 @@ async def consume_events() -> None:
     consumer = AIOKafkaConsumer(
         "inventory-events",
         "approval-decisions",
-        bootstrap_servers=settings.kafka_bootstrap_servers,
+        **kafka_client_config(),
         group_id="supply-chain-event-consumer",
         auto_offset_reset="earliest",
         value_deserializer=lambda value: json.loads(value.decode("utf-8")),

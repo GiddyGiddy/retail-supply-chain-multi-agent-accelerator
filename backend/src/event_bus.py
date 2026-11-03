@@ -3,7 +3,7 @@ from typing import Any
 
 from aiokafka import AIOKafkaProducer
 
-from src.config.settings import settings
+from src.kafka_config import kafka_client_config
 
 
 class EventBus:
@@ -12,7 +12,7 @@ class EventBus:
 
     async def start(self) -> None:
         self._producer = AIOKafkaProducer(
-            bootstrap_servers=settings.kafka_bootstrap_servers,
+            **kafka_client_config(),
             value_serializer=lambda value: json.dumps(value).encode("utf-8"),
         )
         await self._producer.start()
