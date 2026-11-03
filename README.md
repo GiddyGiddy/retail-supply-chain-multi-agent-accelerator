@@ -1,15 +1,52 @@
 # InventarMind
 
-A runnable starter for a human-supervised retail supply-chain workflow. It includes a React dashboard, a FastAPI API, a LangGraph agent workflow, PostgreSQL persistence, Kafka events, local Docker Compose, and Azure Terraform/Kubernetes deployment starting points.
+Human-supervised multi-agent supply-chain replenishment: a React dashboard, a FastAPI API, a LangGraph agent workflow, PostgreSQL, Kafka events, and Azure deployment via Terraform and GitHub Actions.
 
-## Architecture
+## Current cloud deployment
 
-- **Frontend:** React + TypeScript dashboard and human approval queue. Microsoft Entra ID browser sign-in is enabled when configured.
-- **Backend:** FastAPI API for health, approval decisions, and agent runs; PostgreSQL stores approvals and Kafka carries decision events.
-- **Agents:** A deterministic LangGraph workflow creates a replenishment proposal. The API puts the proposal in the approval queue; no ERP/OMS writes are performed.
-- **Local infrastructure:** PostgreSQL and Redpanda (Kafka API) run alongside the API, frontend, and event consumer.
-- **Azure:** Terraform provisions a resource group, Azure Container Apps environment, Azure Database for PostgreSQL Flexible Server, and Event Hubs Kafka endpoint. Kubernetes manifests are deployment templates.
+InventarMind is deployed to Azure (resource group `rg-inventarmind`, Sweden Central) and managed with Terraform.
 
+| Item | Value |
+| --- | --- |
+| Web app | https://inventarmind.giddyitsolutions.com (CNAME at name.com, managed certificate) |
+| API | `inventarmind-api` Container App, `/health` reports healthy |
+| Auth | Microsoft Entra ID (API app + SPA app registration, scope `access_as_user`) |
+| Database | Azure Database for PostgreSQL Flexible Server (B1ms, North Europe) |
+| Events | Event Hubs Kafka endpoint, Entra-only (SASL OAUTHBEARER via managed identity) |
+| Secrets | Key Vault (`database-url`, `openai-api-key`), read by managed identity |
+| CI/CD | GitHub Actions with OIDC builds images, pushes to ACR, updates the Container Apps |
+| ERP | Business Central Draft POs; writes are **off** (`BC_WRITES_ENABLED=false`) |
+
+## Solution Architecture
+
+![InventarMind solution architecture using Azure icons](./docs/solution-architecture.svg)
+
+### Azure resources
+
+- Container Apps environment `inventarmind-env` with `inventarmind-api` (port 8000) and `inventarmind-web` (port 80)
+- Container Registry, Key Vault (RBAC), Log Analytics `inventarmind-logs`
+- Event Hubs namespace with `inventory-events` and `approval-decisions` (local auth disabled)
+- PostgreSQL Flexible Server, database `supply_chain`
+- User-assigned managed identities for the API, web app and GitHub deploy
+
+### Agents
+
+| Node | LLM? | Role |
+| --- | --- | --- |
+| Orchestrator | Optional (OpenAI `o3`) | Decomposes the objective, routes tasks, retries twice then escalates to a human |
+| Demand & Inventory | No | Deterministic stockout deficit = max(0, safety - on_hand) |
+| Allocation & Sourcing | Optional | Deterministic transfer/vendor ranking; the LLM can only lower supplier reliability |
+| Procurement & Vendor | Yes | Function calling builds the PO payload; Python verifies it, and dispatch requires `po_approved`, value < $50k and a vendor email |
+
+Proposals wait in the approval queue; nothing is written to the ERP without human approval.
+
+### Known gaps
+
+- Approving a proposal does not yet trigger the Business Central write.
+- The Kafka consumer only logs events; inventory events do not yet feed the workflow.
+- Live OpenAI calls are untested; the planner is active only once `openai-api-key` exists in Key Vault.
+- Vendor email sending and acknowledgement checks are placeholders.
+- `infra/k8s` is an unused alternative to Container Apps.
 ## Run locally
 
 Requirements: Docker Desktop with Compose.
@@ -39,20 +76,25 @@ For deployments, set `AUTH_ENABLED=true`, `ENTRA_TENANT_ID`, and `ENTRA_API_CLIE
 frontend/                 React HITL dashboard and approval queue
 backend/src/              FastAPI routes, database, Kafka producer and consumer
 agents/                   LangGraph state, workflow, nodes, and agent tools
-infra/terraform/           Azure resource starting point
+infra/terraform/          Azure infrastructure (Container Apps, PostgreSQL, Event Hubs, Key Vault)
 infra/k8s/                 Kubernetes manifests
-.github/workflows/         Azure Container Apps deployment workflow
+.github/workflows/         Image build and Container Apps deploy (OIDC)
+docs/                      Solution architecture diagram
 ```
 
 ## Azure deployment
 
-1. Review and apply `infra/terraform` with your Azure subscription, region, and non-empty database administrator credentials.
-2. Configure GitHub Actions OIDC federation and repository variables/secrets documented in `.github/workflows/deploy.yml`.
-3. Configure the Container Apps API with `AUTH_ENABLED=true` and Entra settings; provide the frontend build-time Entra settings.
-4. Set the API database and Kafka connection values to the outputs from your Azure resources.
+1. **Terraform** (from `infra/terraform`; copy `terraform.tfvars.example` to `terraform.tfvars`). Supply secrets through the environment, never files:
 
-Terraform provisions platform resources, not application secrets or Entra app registrations. The GitHub workflow is intentionally gated on repository configuration and should be adapted to your organization's environment and image registry policies before production use.
+   ```powershell
+   $env:TF_VAR_postgres_admin_password = Read-Host -MaskInput "Postgres password"
+   $env:TF_VAR_openai_api_key = Read-Host -MaskInput "OpenAI API key"
+   terraform init; terraform plan; terraform apply
+   ```
 
+   State is local and contains the database password; it is gitignored. Consider a remote backend.
+2. **GitHub Actions**: the deploy identity uses OIDC federation. Set the secrets `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` and the variables listed in `.github/workflows/deploy.yml`. Pushes to `main` build and roll out new images only; Terraform changes are applied manually.
+3. **Custom domain** (frontend only): at the DNS host add `CNAME inventarmind` -> the web Container App FQDN and `TXT asuid.inventarmind` -> the environment verification ID, then run `az containerapp hostname add` and `az containerapp hostname bind` for a managed certificate. Add the new origin to `CORS_ORIGINS` and the SPA redirect URIs in Entra.
 ## Development checks
 
 ```powershell

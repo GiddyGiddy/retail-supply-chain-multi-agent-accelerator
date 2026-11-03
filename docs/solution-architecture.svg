@@ -1,0 +1,242 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1740 1030" width="1740" height="1030" font-family="Segoe UI, Arial, sans-serif">
+<title>InventarMind - Solution Architecture</title>
+<defs><symbol id="ic-aca" viewBox="0 0 18 18"><defs><linearGradient id="aca_a3a44093-b157-426e-a8fe-cec9f9c23978" x1="11.729" y1="4.88" x2="11.729" y2="13.099" gradientUnits="userSpaceOnUse"><stop offset="0.001" stop-color="#773adc" /><stop offset="0.528" stop-color="#6635bb" /><stop offset="1" stop-color="#552f99" /></linearGradient><linearGradient id="aca_ad838859-03f4-472f-81bc-ebc921d71335" x1="6.35" y1="13.914" x2="6.35" y2="4.198" gradientUnits="userSpaceOnUse"><stop offset="0.001" stop-color="#773adc" /><stop offset="0.307" stop-color="#793ddd" /><stop offset="0.532" stop-color="#8046e1" /><stop offset="0.731" stop-color="#8c56e7" /><stop offset="0.915" stop-color="#9c6def" /><stop offset="1" stop-color="#a67af4" /></linearGradient></defs><g id="aca_ae82470d-7a6c-4dfe-8533-59d8ff948629"><g><path d="M8.617,8.644H.639V1.784A1.16,1.16,0,0,1,1.788.624H8.617ZM1.63,7.653h6V1.594H1.788a.158.158,0,0,0-.158.158h0Z" fill="#949494" /><path d="M17.5,8.644H9.523V.624h6.828A1.16,1.16,0,0,1,17.5,1.784Zm-6.987-.991h6V1.784a.157.157,0,0,0-.123-.187.2.2,0,0,0-.035,0H10.513Z" fill="#949494" /><path d="M8.617,17.485H1.788A1.149,1.149,0,0,1,.639,16.347V9.476H8.617ZM1.63,10.467v5.88a.158.158,0,0,0,.158.158H7.626V10.467Z" fill="#949494" /><path d="M16.351,17.485H9.523V9.476H17.5v6.871A1.149,1.149,0,0,1,16.351,17.485Zm-5.838-.991h5.838a.157.157,0,0,0,.158-.158V10.467h-6Z" fill="#949494" /><path d="M14.6,6.294a.294.294,0,0,0-.2-.278L9.044,4.205A.128.128,0,0,0,9,4.2H9a.132.132,0,0,0-.133.133v9.445A.133.133,0,0,0,9,13.911H9a.138.138,0,0,0,.049-.01l5.365-2.145a.292.292,0,0,0,.184-.272Z" fill="url(#aca_a3a44093-b157-426e-a8fe-cec9f9c23978)" /><path d="M8.966,4.2l-5.293.966a.161.161,0,0,0-.13.158V12.63a.16.16,0,0,0,.126.157L8.962,13.91a.161.161,0,0,0,.191-.121.22.22,0,0,0,0-.036V4.358A.16.16,0,0,0,9,4.2.163.163,0,0,0,8.966,4.2Z" fill="url(#aca_ad838859-03f4-472f-81bc-ebc921d71335)" /><path d="M6.52,5.656v6.8l1.842.3V5.335Zm-2.262.367v5.955l1.6.326V5.754Z" fill="#b796f9" opacity="0.5" /></g></g></symbol><symbol id="ic-acr" viewBox="0 0 18 18"><defs><linearGradient id="acr_bdf27dc6-025c-4805-8bfd-3a05defd3fbd" x1="8.637" y1="-1.991" x2="8.637" y2="16.739" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#5ea0ef" /><stop offset="1" stop-color="#0078d4" /></linearGradient><linearGradient id="acr_fcd6c6c7-e2eb-4a32-b914-3a8485585a1b" x1="12.96" y1="8.561" x2="12.96" y2="6.141" gradientTransform="matrix(1, 0, 0, -1, 0, 20)" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#333132" /><stop offset="1" stop-color="#5b5a5c" /></linearGradient></defs><path d="M7.43,8.178l2.589-1.573,7.255,2.731A3.664,3.664,0,0,0,16.23,7.49l-.01-.05A4.194,4.194,0,0,0,14,6.32a4.91,4.91,0,0,0-5.1-4.7A5.071,5.071,0,0,0,4.06,4.91,4.621,4.621,0,0,0,0,9.39a4.73,4.73,0,0,0,4.89,4.54H7.43Z" fill="url(#acr_bdf27dc6-025c-4805-8bfd-3a05defd3fbd)" /><polygon points="10.07 7.159 10.08 11.439 17.99 13.119 17.99 10.139 10.07 7.159" fill="#767676" /><polyline points="10.07 7.159 7.93 8.459 7.93 12.439 10.08 11.439" fill="#999" /><polygon points="13.68 11.499 14.4 11.699 14.4 9.369 13.68 9.119 13.68 11.499" fill="#a3a3a3" /><polygon points="12.96 8.889 12.24 8.629 12.24 11.119 12.96 11.319 12.96 8.889" fill="#a3a3a3" /><polygon points="15.12 11.889 15.82 12.079 15.84 9.859 15.12 9.619 15.12 11.889" fill="#a3a3a3" /><polygon points="10.81 10.749 11.53 10.929 11.53 8.399 10.81 8.159 10.81 10.749" fill="#a3a3a3" /><polygon points="17.27 10.349 16.55 10.099 16.55 12.269 17.27 12.469 17.27 10.349" fill="#a3a3a3" /><path id="acr_ef0d1b54-a1e7-4cb9-a4e5-8a8518e7c127" d="M8.66,11.369l-.36.21V8.749l.36-.19Zm.71-3.22L9,8.389v2.75l.37-.2Z" fill="#b3b3b3" /><polygon points="17.99 13.119 15.83 13.859 7.93 12.439 10.08 11.439 17.99 13.119" fill="url(#acr_fcd6c6c7-e2eb-4a32-b914-3a8485585a1b)" /><polygon points="17.99 16.169 10.04 17.679 10.08 12.089 17.99 13.559 17.99 16.169" fill="#767676" /><polygon points="10.81 16.759 10.81 13.209 11.53 13.299 11.53 16.639 10.81 16.759" fill="#a3a3a3" /><polygon points="12.96 16.399 12.24 16.529 12.24 13.389 12.96 13.499 12.96 16.399 12.96 16.399" fill="#a3a3a3" /><polygon points="13.68 16.289 13.68 13.569 14.4 13.659 14.4 16.159 13.68 16.289" fill="#a3a3a3" /><polygon points="15.83 15.909 15.12 16.039 15.12 13.749 15.83 13.859 15.83 15.909" fill="#a3a3a3" /><polygon points="17.29 15.679 16.55 15.809 16.55 13.929 17.24 14.019 17.29 15.679" fill="#a3a3a3" /><path id="acr_b9f25eb4-4c88-45c2-bc4d-f992757d7e0e" d="M7.93,16.4v-3.26l2.16-1v5.6Z" fill="#999" /><path id="acr_eb9200a7-4693-4427-bdae-b33ce90ff7f2" d="M8.61,16.389l-.32-.16v-2.76l.32-.15Zm.77-3.45-.38.19v3.48l.37.19v-3.86Z" fill="#b3b3b3" /></symbol><symbol id="ic-pg" viewBox="0 0 18 18"><defs><linearGradient id="pg_a28dee20-4c71-46b5-b957-804c67da725a" x1="2.44" y1="10.67" x2="15.27" y2="10.67" gradientTransform="translate(0.14 -0.5) rotate(-0.01)" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#005ba1" /><stop offset="0.07" stop-color="#0060a9" /><stop offset="0.36" stop-color="#0071c8" /><stop offset="0.52" stop-color="#0078d4" /><stop offset="0.64" stop-color="#0074cd" /><stop offset="0.82" stop-color="#006abb" /><stop offset="1" stop-color="#005ba1" /></linearGradient></defs><title>Icon-databases-131</title><path d="M9,5.14c-3.54,0-6.41-1-6.41-2.32V15.18c0,1.27,2.82,2.3,6.32,2.32H9c3.54,0,6.41-1,6.41-2.32V2.82C15.41,4.1,12.54,5.14,9,5.14Z" fill="url(#pg_a28dee20-4c71-46b5-b957-804c67da725a)" /><path d="M15.41,2.82c0,1.28-2.87,2.32-6.41,2.32s-6.41-1-6.41-2.32S5.46.5,9,.5s6.41,1,6.41,2.32" fill="#e8e8e8" /><path d="M13.91,2.63c0,.82-2.2,1.48-4.91,1.48S4.08,3.45,4.08,2.64,6.28,1.16,9,1.16s4.91.66,4.91,1.47" fill="#50e6ff" /><path d="M9,3a11.65,11.65,0,0,0-3.9.57A11.53,11.53,0,0,0,9,4.11a11.47,11.47,0,0,0,3.89-.58A11.93,11.93,0,0,0,9,3Z" fill="#198ab3" /><path d="M12,9c0,.08,0,.24,0,.42a5.12,5.12,0,0,0-.08.63c0,.12,0,.3.05.46s0,.27,0,.36a1.68,1.68,0,0,1-.25.86.43.43,0,0,0,0,.07l.1.12a10.55,10.55,0,0,0,1.06-2.38h0c.28-.95.31-1.63.09-1.92a2.58,2.58,0,0,0-2.68-.86,3.29,3.29,0,0,1,.91.67A2.28,2.28,0,0,1,12,9Zm-.31.08a1.15,1.15,0,0,0-.79.09c-.29.18-.2.55,0,1a7.77,7.77,0,0,0,.35.85l.09.16h0c.05.08.08.15.11.2l.08.13a1.28,1.28,0,0,0,.18-.65,2.86,2.86,0,0,0,0-.33c0-.17,0-.36-.05-.49a6.1,6.1,0,0,1,.08-.69C11.71,9.24,11.72,9.13,11.73,9.05Zm-.3.41a.4.4,0,0,1-.18.1h0a.33.33,0,0,1-.14,0A.23.23,0,0,1,11,9.4h0c0-.07.11-.13.24-.15h.19s.09,0,.09.08A.2.2,0,0,1,11.43,9.46Zm-4.69.89c0-.07,0-.13,0-.17a1,1,0,0,0,0-.17,5.55,5.55,0,0,1,0-1A5.22,5.22,0,0,1,7,7.94,2.41,2.41,0,0,1,7.58,7,4.78,4.78,0,0,0,6.23,6.8a1.87,1.87,0,0,0-1.1.3A2,2,0,0,0,4.5,8.92,12.27,12.27,0,0,0,5,11.16c.34,1.14.73,1.84,1.07,1.95h0c.15.05.31,0,.47-.21.28-.34.54-.63.69-.8A1.88,1.88,0,0,1,6.74,10.35Zm.26.4a2.18,2.18,0,0,0,.06.56,1.5,1.5,0,0,0,.26.44,1.07,1.07,0,0,0,.35.25,1.09,1.09,0,0,0,.39.08c0-.17.14-.38.23-.6a4.35,4.35,0,0,0,.21-.59,6.61,6.61,0,0,0,0-1.11c0-.09,0-.19-.06-.3a.45.45,0,0,0-.12-.27l0,0A.66.66,0,0,0,8,9.08H7.8a1.56,1.56,0,0,0-.48.14A2,2,0,0,0,7,9.41v.11c0,.2,0,.41,0,.61v0a.86.86,0,0,1,0,.15l0,.39H7Zm.66-1.34,0,0a.46.46,0,0,1,.28,0,.6.6,0,0,1,.19.06c.09,0,.1.11.09.14h0a.37.37,0,0,1-.12.13A.3.3,0,0,1,8,9.73h0a.34.34,0,0,1-.28-.28Zm.74,3a.23.23,0,0,0-.13.06l-.14.17c-.17.21-.24.28-.73.38a.52.52,0,0,0-.26.1.58.58,0,0,0,.24.11,1.18,1.18,0,0,0,.72,0A1.7,1.7,0,0,0,8.45,13a.61.61,0,0,0,.2-.31.36.36,0,0,0-.1-.28A.15.15,0,0,0,8.4,12.39Zm4.61,0a1.63,1.63,0,0,1-1.13,0,.22.22,0,0,0-.14,0,.3.3,0,0,0-.17.14,1.09,1.09,0,0,0,0,.31,1.8,1.8,0,0,0,1.1-.1,1.36,1.36,0,0,0,.48-.34Zm-2.4-2.14c-.14-.41-.34-1,.18-1.36a1.35,1.35,0,0,1,.89-.15A3.18,3.18,0,0,0,11,7.64l-.1-.1-.06-.06h0a.34.34,0,0,0-.06-.06l0,0,0,0A2.34,2.34,0,0,0,10.11,7,2.63,2.63,0,0,0,9,6.78a1.52,1.52,0,0,0-.7.11A1.77,1.77,0,0,0,8,7a2.1,2.1,0,0,0-.74,1,5.84,5.84,0,0,0-.21,1,1.66,1.66,0,0,1,1-.23.84.84,0,0,1,.77.91,7.26,7.26,0,0,1,0,1.27,3.87,3.87,0,0,1-.23.63c-.06.17-.14.35-.18.49a.5.5,0,0,1,.38.14.66.66,0,0,1,.19.53H9c0,.08,0,.16,0,.24a6.55,6.55,0,0,0,.24,2.44.54.54,0,0,0,.24.21.6.6,0,0,0,.31.1,1.3,1.3,0,0,0,1-.34,1.05,1.05,0,0,0,.29-.66c.07-.45.22-1.7.24-2h0a.72.72,0,0,1,.09-.44.63.63,0,0,1,.27-.24A5.36,5.36,0,0,1,10.61,10.24Z" fill="#f2f2f2" /></symbol><symbol id="ic-mi" viewBox="0 0 18 18"><defs><linearGradient id="mi_bb67b154-af8f-4a53-a9ce-aa046b9398e9" x1="13.18" y1="13.01" x2="8.63" y2="4.38" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#1988d9" /><stop offset="0.9" stop-color="#54aef0" /></linearGradient><linearGradient id="mi_a47d7138-084a-471d-8d63-744e75b9e8a3" x1="11.22" y1="10.5" x2="14.37" y2="15.93" gradientUnits="userSpaceOnUse"><stop offset="0.1" stop-color="#54aef0" /><stop offset="0.29" stop-color="#4fabee" /><stop offset="0.51" stop-color="#41a2e9" /><stop offset="0.74" stop-color="#2a93e0" /><stop offset="0.88" stop-color="#1988d9" /></linearGradient></defs><title>Icon-identity-227</title><g><polygon points="1.15 10.22 8.93 15.27 16.85 10.21 17.85 11.36 8.93 17.11 0.15 11.37 1.15 10.22" fill="#50e6ff" /><polygon points="1.73 9.58 8.93 1 16.28 9.59 8.93 14.23 1.73 9.58" fill="#fff" /><polygon points="8.93 1 8.93 14.23 1.73 9.58 8.93 1" fill="#50e6ff" /><polygon points="8.93 1 8.93 14.23 16.28 9.59 8.93 1" fill="url(#mi_bb67b154-af8f-4a53-a9ce-aa046b9398e9)" /><polygon points="8.93 7.83 16.28 9.59 8.93 14.23 8.93 7.83" fill="#53b1e0" /><polygon points="8.93 14.23 1.73 9.58 8.93 7.83 8.93 14.23" fill="#9cebff" /><polygon points="8.93 17.11 17.85 11.36 16.85 10.21 8.93 15.27 8.93 17.11" fill="url(#mi_a47d7138-084a-471d-8d63-744e75b9e8a3)" /><g><path id="mi_e189a61f-631a-4122-bb2b-079e86004d96" d="M16.32,11.88a1.16,1.16,0,0,0,0-1.65h0l-2-2a1.16,1.16,0,0,0-1.64,0h0l-2,2a1.18,1.18,0,0,0,0,1.65l1.67,1.67a.32.32,0,0,1,.09.23v3.1a.36.36,0,0,0,.12.28l.76.76a.25.25,0,0,0,.37,0l.73-.73h0l.44-.44a.15.15,0,0,0,0-.21l-.31-.31a.16.16,0,0,1,0-.24l.31-.31a.16.16,0,0,0,0-.22l-.31-.31a.15.15,0,0,1,0-.23l.31-.32a.15.15,0,0,0,0-.21l-.44-.44v-.16ZM13.5,8.71a.66.66,0,1,1-.66.66.66.66,0,0,1,.66-.66Z" fill="#ffca00" /><path id="mi_fb7033ee-4650-4886-80c7-eddf62560f85" d="M13,17h0a.14.14,0,0,0,.24-.11V14.33a.16.16,0,0,0-.06-.13h0a.14.14,0,0,0-.22.13v2.51A.15.15,0,0,0,13,17Z" fill="#ff9300" opacity="0.75" /><rect id="mi_b166b8c2-b9ee-4c3d-bf7a-77bd5ce0570b" x="11.9" y="10.9" width="3.29" height="0.39" rx="0.18" fill="#ff9300" opacity="0.75" /><rect id="mi_baf437fe-3483-4a25-94ba-1e84a64cd2eb" x="11.9" y="11.53" width="3.29" height="0.39" rx="0.18" fill="#ff9300" opacity="0.75" /></g></g></symbol><symbol id="ic-law" viewBox="0 0 18 18"><defs><linearGradient id="law_a997e203-1d7d-4cb9-b131-5dc44e029b46" x1="5.23" y1="17.45" x2="5.23" y2="8.09" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#1988d9" /><stop offset="0.9" stop-color="#54aef0" /></linearGradient><linearGradient id="law_e122e9d8-aee5-4f1a-a60e-b1eae355daa5" x1="11.5" y1="12.45" x2="11.5" y2="0.55" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#198ab3" /><stop offset="0.01" stop-color="#198bb4" /><stop offset="0.44" stop-color="#27b2d7" /><stop offset="0.79" stop-color="#2fcbed" /><stop offset="1" stop-color="#32d4f5" /></linearGradient></defs><title>Icon-manage-307</title><path d="M5.59,13.13H9.91v4.32H5.59ZM1.15,17.45H4.87V13.13H.55v3.72A.6.6,0,0,0,1.15,17.45Zm-.6-5H4.87V8.09H.55Z" fill="url(#law_a997e203-1d7d-4cb9-b131-5dc44e029b46)" /><path d="M11.5.55a5.89,5.89,0,0,1,5.95,6,5.89,5.89,0,0,1-5.95,5.95H5.55V6.5A5.89,5.89,0,0,1,11.5.55Z" fill-rule="evenodd" fill="url(#law_e122e9d8-aee5-4f1a-a60e-b1eae355daa5)" /><rect x="7.59" y="5.65" width="1.36" height="4.08" fill="#fff" /><rect x="10.31" y="7.01" width="1.36" height="2.72" fill="#fff" /><rect x="13.03" y="4.29" width="1.36" height="5.44" fill="#fff" /></symbol><symbol id="ic-agent" viewBox="0 0 18 18"><defs><radialGradient id="agent_b915730c-dc69-4cd4-8cf3-619882b8e8ab" cx="55.71" cy="71.92" r="9" gradientTransform="translate(-43.61 -58.92) scale(0.94 0.94)" gradientUnits="userSpaceOnUse"><stop offset="0.67" stop-color="#6bb9f2" /><stop offset="0.74" stop-color="#61b4f1" /><stop offset="0.85" stop-color="#47a8ef" /><stop offset="0.99" stop-color="#1d94eb" /><stop offset="1" stop-color="#1b93eb" /></radialGradient></defs><title>Icon-machinelearning-165</title><path id="agent_f6a29e1b-194b-4d8d-8529-49edea7bbba0" d="M9,.5A8.5,8.5,0,1,0,17.5,9,8.5,8.5,0,0,0,9,.5Z" fill="url(#agent_b915730c-dc69-4cd4-8cf3-619882b8e8ab)" /><circle cx="9" cy="9" r="7.03" fill="#fff" /><circle cx="7.45" cy="9" r="0.77" fill="#32bedd" /><path d="M5.26,6.8H4.88a.29.29,0,0,0-.29.29v5.72a.59.59,0,0,0,.59.59h5.57a.29.29,0,0,0,.29-.3v-.38a.29.29,0,0,0-.29-.29h-5a.14.14,0,0,1-.14-.15V7.09A.29.29,0,0,0,5.26,6.8Z" fill="#32bedd" /><circle cx="10.55" cy="9" r="0.77" fill="#32bedd" /><path d="M12.42,4.6H7.23a.29.29,0,0,0-.29.3v.38a.29.29,0,0,0,.29.29h5a.15.15,0,0,1,.15.15v5.19a.29.29,0,0,0,.29.29h.38a.29.29,0,0,0,.29-.29V5.19a.59.59,0,0,0-.58-.59Z" fill="#32bedd" /></symbol><symbol id="ic-entra" viewBox="0 0 18 18"><defs><linearGradient id="entra_efeb8e96-2af0-4681-9a6a-45f9b0262f19" x1="-6518.78" y1="1118.86" x2="-6518.78" y2="1090.06" gradientTransform="matrix(0.5, 0, 0, -0.5, 3267.42, 559.99)" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#5ea0ef" /><stop offset="0.18" stop-color="#589eed" /><stop offset="0.41" stop-color="#4897e9" /><stop offset="0.66" stop-color="#2e8ce1" /><stop offset="0.94" stop-color="#0a7cd7" /><stop offset="1" stop-color="#0078d4" /></linearGradient></defs><path d="M5.67,10.61H10v4.32H5.67Zm-5-5.76H5V.53H1.23a.6.6,0,0,0-.6.6Zm.6,10.08H5V10.61H.63v3.72A.6.6,0,0,0,1.23,14.93Zm-.6-5H5V5.57H.63Zm10.08,5h3.72a.6.6,0,0,0,.6-.6V10.61H10.71Zm-5-5H10V5.57H5.67Zm5,0H15V5.57H10.71Zm0-9.36V4.85H15V1.13a.6.6,0,0,0-.6-.6Zm-5,4.32H10V.53H5.67Z" fill="url(#entra_efeb8e96-2af0-4681-9a6a-45f9b0262f19)" /><polygon points="17.37 10.7 17.37 15.21 13.5 17.47 13.5 12.96 17.37 10.7" fill="#32bedd" /><polygon points="17.37 10.7 13.5 12.97 9.63 10.7 13.5 8.44 17.37 10.7" fill="#9cebff" /><polygon points="13.5 12.97 13.5 17.47 9.63 15.21 9.63 10.7 13.5 12.97" fill="#50e6ff" /><polygon points="9.63 15.21 13.5 12.96 13.5 17.47 9.63 15.21" fill="#9cebff" /><polygon points="17.37 15.21 13.5 12.96 13.5 17.47 17.37 15.21" fill="#50e6ff" /></symbol><symbol id="ic-eh" viewBox="0 0 18 18"><g><g id="a53a4de8-371c-49da-a662-c4631299fc03"><path d="M10.83,8.42a.26.26,0,0,1-.24.27H8.5a.26.26,0,0,1-.27-.24V6.89a.26.26,0,0,1,.24-.27h2.09a.26.26,0,0,1,.27.24V8.42Z" fill="#76bc2d" /><path d="M14.54,10a.26.26,0,0,1-.24.27H12.21a.26.26,0,0,1-.27-.24V8.48a.26.26,0,0,1,.24-.27h2.09a.26.26,0,0,1,.27.24V10Z" fill="#76bc2d" /><path d="M10.83,11.6a.26.26,0,0,1-.24.27H8.5a.26.26,0,0,1-.27-.24V10.07a.26.26,0,0,1,.24-.27h2.09a.26.26,0,0,1,.27.24V11.6Z" fill="#76bc2d" /><path d="M7.12,6.84a.25.25,0,0,1-.23.26H4.74a.26.26,0,0,1-.27-.23V5.25A.26.26,0,0,1,4.71,5H6.8c.22,0,.32.11.32.27Z" fill="#86d633" /><path d="M7.12,10a.25.25,0,0,1-.23.27H4.74A.26.26,0,0,1,4.47,10V8.42a.26.26,0,0,1,.24-.26H6.8c.22,0,.32.11.32.26Z" fill="#76bc2d" /><path d="M7.12,13.19a.25.25,0,0,1-.23.27H4.74a.26.26,0,0,1-.27-.24V11.6a.25.25,0,0,1,.24-.26H6.8c.22,0,.32.1.32.26Z" fill="#76bc2d" /><g><path d="M1.07,1.51H2.36a0,0,0,0,1,0,0v3.6a.29.29,0,0,1-.29.29H.79A.29.29,0,0,1,.5,5.11v-3A.57.57,0,0,1,1.07,1.51Z" fill="#999" /><path d="M1.07,1.51H2.36a0,0,0,0,1,0,0v3.6a.29.29,0,0,1-.29.29H.79A.29.29,0,0,1,.5,5.11v-3A.57.57,0,0,1,1.07,1.51Z" fill="#999" opacity="0.5" /></g><g><path d="M15.64,1.51h1.29a.57.57,0,0,1,.57.57v3a.29.29,0,0,1-.29.29H15.92a.29.29,0,0,1-.29-.29V1.51A0,0,0,0,1,15.64,1.51Z" fill="#999" /><path d="M15.64,1.51h1.29a.57.57,0,0,1,.57.57v3a.29.29,0,0,1-.29.29H15.92a.29.29,0,0,1-.29-.29V1.51A0,0,0,0,1,15.64,1.51Z" fill="#999" opacity="0.5" /></g><path d="M8.66-6.08H9.91a0,0,0,0,1,0,0v17a0,0,0,0,1,0,0H8.66a.57.57,0,0,1-.57-.57V-5.52A.57.57,0,0,1,8.66-6.08Z" transform="translate(11.42 -6.58) rotate(90)" fill="#949494" /><g><path d="M.79,12.76H2.08a.29.29,0,0,1,.29.29v3.6a0,0,0,0,1,0,0H1.07a.57.57,0,0,1-.57-.57V13A.29.29,0,0,1,.79,12.76Z" fill="#999" /><path d="M.79,12.76H2.08a.29.29,0,0,1,.29.29v3.6a0,0,0,0,1,0,0H1.07a.57.57,0,0,1-.57-.57V13A.29.29,0,0,1,.79,12.76Z" fill="#999" opacity="0.5" /></g><g><path d="M15.92,12.76h1.29a.29.29,0,0,1,.29.29v3a.57.57,0,0,1-.57.57H15.64a0,0,0,0,1,0,0V13A.29.29,0,0,1,15.92,12.76Z" fill="#999" /><path d="M15.92,12.76h1.29a.29.29,0,0,1,.29.29v3a.57.57,0,0,1-.57.57H15.64a0,0,0,0,1,0,0V13A.29.29,0,0,1,15.92,12.76Z" fill="#999" opacity="0.5" /></g><path d="M8.66,7.24H9.91a0,0,0,0,1,0,0v17a0,0,0,0,1,0,0H8.66a.57.57,0,0,1-.57-.57V7.81A.57.57,0,0,1,8.66,7.24Z" transform="translate(-6.74 24.74) rotate(-90)" fill="#949494" /></g></g></symbol><symbol id="ic-kv" viewBox="0 0 18 18"><defs><radialGradient id="fb114c93-7c16-4540-899a-0796041629e6" cx="9" cy="9" r="8.5" gradientUnits="userSpaceOnUse"><stop offset="0.18" stop-color="#5ea0ef" /><stop offset="0.56" stop-color="#5c9fee" /><stop offset="0.69" stop-color="#559ced" /><stop offset="0.78" stop-color="#4a97e9" /><stop offset="0.86" stop-color="#3990e4" /><stop offset="0.93" stop-color="#2387de" /><stop offset="0.99" stop-color="#087bd6" /><stop offset="1" stop-color="#0078d4" /></radialGradient><radialGradient id="ec478bd3-5b38-4e7f-b661-11f355578bff" cx="38.95" cy="182.07" r="9.88" gradientTransform="translate(-28.71 -163.24) scale(0.94 0.94)" gradientUnits="userSpaceOnUse"><stop offset="0.27" stop-color="#ffd70f" /><stop offset="0.49" stop-color="#ffcb12" /><stop offset="0.88" stop-color="#feac19" /><stop offset="1" stop-color="#fea11b" /></radialGradient></defs><path id="aacf8311-a317-400f-b613-74bd00da5ce3" d="M9,.5A8.5,8.5,0,1,0,17.5,9,8.51,8.51,0,0,0,9,.5ZM9,16.34A7.34,7.34,0,1,1,16.34,9,7.34,7.34,0,0,1,9,16.34Z" fill="url(#fb114c93-7c16-4540-899a-0796041629e6)" /><circle cx="9" cy="9" r="7.34" fill="#fff" /><g><path id="bd983c41-db73-40ec-a4f4-da1213fc9924" d="M13.44,7.33a1.84,1.84,0,0,0,0-2.59h0L10.29,1.58a1.83,1.83,0,0,0-2.58,0h0L4.56,4.74a1.84,1.84,0,0,0,0,2.59L7.18,10a.51.51,0,0,1,.15.36v4.88a.63.63,0,0,0,.18.44l1.2,1.2a.41.41,0,0,0,.58,0l1.16-1.16h0l.68-.68a.25.25,0,0,0,0-.34l-.49-.49a.27.27,0,0,1,0-.37l.49-.49a.25.25,0,0,0,0-.34l-.49-.49a.27.27,0,0,1,0-.37l.49-.49a.25.25,0,0,0,0-.34l-.68-.69v-.25ZM9,2.35A1,1,0,0,1,9,4.42,1,1,0,1,1,9,2.35Z" fill="url(#ec478bd3-5b38-4e7f-b661-11f355578bff)" /><path id="ad2e7e44-9bfd-4775-8bf4-8ef26a544921" d="M8.18,15.3h0a.23.23,0,0,0,.38-.17v-4a.24.24,0,0,0-.11-.2h0a.22.22,0,0,0-.34.2v4A.28.28,0,0,0,8.18,15.3Z" fill="#ff9300" opacity="0.75" /><rect id="a996fbff-3936-4b24-b407-369336c143ba" x="6.48" y="5.79" width="5.17" height="0.61" rx="0.28" fill="#ff9300" opacity="0.75" /><rect id="bb12d31c-3352-4a18-87dd-a169a4a8721d" x="6.48" y="6.78" width="5.17" height="0.61" rx="0.28" fill="#ff9300" opacity="0.75" /></g></symbol><symbol id="ic-bc" viewBox="0 0 96 96">
+<g clip-path="url(#clip0_4303_1230)">
+<g clip-path="url(#clip1_4303_1230)">
+<path d="M34 33.9998C41.732 41.7317 54.268 41.7318 62 33.9999C69.732 26.2679 69.732 13.7318 62 5.99986C54.268 -1.73209 41.732 -1.73214 34 5.99979C26.268 13.7318 26.2681 26.2678 34 33.9998Z" fill="url(#paint0_linear_4303_1230)"/>
+<path d="M34 33.9998C41.732 41.7317 54.268 41.7318 62 33.9999C69.732 26.2679 69.732 13.7318 62 5.99986C54.268 -1.73209 41.732 -1.73214 34 5.99979C26.268 13.7318 26.2681 26.2678 34 33.9998Z" fill="url(#paint1_radial_4303_1230)"/>
+<path d="M34 33.9998C41.732 41.7317 54.268 41.7318 62 33.9999C69.732 26.2679 69.732 13.7318 62 5.99986C54.268 -1.73209 41.732 -1.73214 34 5.99979C26.268 13.7318 26.2681 26.2678 34 33.9998Z" fill="url(#paint2_linear_4303_1230)"/>
+<path d="M62 62.0002C54.268 54.2683 41.732 54.2682 34 62.0001C26.268 69.7321 26.268 82.2682 34 90.0001C41.732 97.7321 54.268 97.7321 62 90.0002C69.732 82.2682 69.7319 69.7322 62 62.0002Z" fill="url(#paint3_linear_4303_1230)"/>
+<path d="M62 62.0002C54.268 54.2683 41.732 54.2682 34 62.0001C26.268 69.7321 26.268 82.2682 34 90.0001C41.732 97.7321 54.268 97.7321 62 90.0002C69.732 82.2682 69.7319 69.7322 62 62.0002Z" fill="url(#paint4_linear_4303_1230)"/>
+<path d="M62 62.0002C54.268 54.2683 41.732 54.2682 34 62.0001C26.268 69.7321 26.268 82.2682 34 90.0001C41.732 97.7321 54.268 97.7321 62 90.0002C69.732 82.2682 69.7319 69.7322 62 62.0002Z" fill="url(#paint5_radial_4303_1230)"/>
+<path d="M34 62C41.732 69.732 54.268 69.732 62 62C69.732 54.268 69.732 41.732 62 34C54.268 26.268 41.732 26.268 34 34C26.268 41.732 26.268 54.268 34 62Z" fill="url(#paint6_linear_4303_1230)"/>
+<path d="M34 62C41.732 69.732 54.268 69.732 62 62C69.732 54.268 69.732 41.732 62 34C54.268 26.268 41.732 26.268 34 34C26.268 41.732 26.268 54.268 34 62Z" fill="url(#paint7_radial_4303_1230)"/>
+<path d="M34 62C41.732 69.732 54.268 69.732 62 62C69.732 54.268 69.732 41.732 62 34C54.268 26.268 41.732 26.268 34 34C26.268 41.732 26.268 54.268 34 62Z" fill="url(#paint8_radial_4303_1230)"/>
+<path d="M6.00002 34L34 5.99998C26.2681 13.732 26.268 26.2681 34 34.0001C41.732 41.7321 41.732 54.2681 34 62.0001C26.268 69.732 13.732 69.732 6.00004 62C-1.73195 54.268 -1.73198 41.732 6.00002 34Z" fill="url(#paint9_linear_4303_1230)"/>
+<path d="M6.00002 34L34 5.99998C26.2681 13.732 26.268 26.2681 34 34.0001C41.732 41.7321 41.732 54.2681 34 62.0001C26.268 69.732 13.732 69.732 6.00004 62C-1.73195 54.268 -1.73198 41.732 6.00002 34Z" fill="url(#paint10_radial_4303_1230)"/>
+<path d="M90 62L62 90C69.7319 82.268 69.732 69.7319 62 61.9999C54.268 54.2679 54.268 41.7319 62 33.9999C69.732 26.268 82.268 26.268 90 34C97.732 41.732 97.732 54.268 90 62Z" fill="url(#paint11_linear_4303_1230)"/>
+</g>
+</g>
+<defs>
+<linearGradient id="paint0_linear_4303_1230" x1="30" y1="9.49999" x2="67" y2="25" gradientUnits="userSpaceOnUse">
+<stop stop-color="#0C74A1"/>
+<stop offset="0.468152" stop-color="#1384B1"/>
+<stop offset="1" stop-color="#16BBDA"/>
+</linearGradient>
+<radialGradient id="paint1_radial_4303_1230" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(48 48) rotate(-90) scale(29.5 29.5)">
+<stop offset="0.456329" stop-color="#0057AA"/>
+<stop offset="1" stop-color="#1384B1" stop-opacity="0"/>
+</radialGradient>
+<linearGradient id="paint2_linear_4303_1230" x1="49" y1="14" x2="26.5" y2="24" gradientUnits="userSpaceOnUse">
+<stop stop-color="#1384B1" stop-opacity="0"/>
+<stop offset="1" stop-color="#004695"/>
+</linearGradient>
+<linearGradient id="paint3_linear_4303_1230" x1="68.5" y1="79.5" x2="29" y2="71" gradientUnits="userSpaceOnUse">
+<stop stop-color="#06517B"/>
+<stop offset="0.508523" stop-color="#09638E"/>
+<stop offset="1" stop-color="#0C74A1"/>
+</linearGradient>
+<linearGradient id="paint4_linear_4303_1230" x1="53" y1="76" x2="69.5" y2="72" gradientUnits="userSpaceOnUse">
+<stop stop-color="#09638E" stop-opacity="0"/>
+<stop offset="1" stop-color="#003580"/>
+</linearGradient>
+<radialGradient id="paint5_radial_4303_1230" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(48 48) rotate(90) scale(36 36)">
+<stop offset="0.423337" stop-color="#003580"/>
+<stop offset="1" stop-color="#09638E" stop-opacity="0"/>
+</radialGradient>
+<linearGradient id="paint6_linear_4303_1230" x1="44.5" y1="29.5" x2="45" y2="68.5" gradientUnits="userSpaceOnUse">
+<stop stop-color="#43E5CA"/>
+<stop offset="0.371719" stop-color="#26CFE8"/>
+<stop offset="1" stop-color="#1384B1"/>
+</linearGradient>
+<radialGradient id="paint7_radial_4303_1230" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(76 48) rotate(90) scale(32)">
+<stop offset="0.399827" stop-color="#09638E"/>
+<stop offset="1" stop-color="#119FC5" stop-opacity="0"/>
+</radialGradient>
+<radialGradient id="paint8_radial_4303_1230" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(20 48) rotate(90) scale(34)">
+<stop offset="0.399827" stop-color="#09638E"/>
+<stop offset="1" stop-color="#119FC5" stop-opacity="0"/>
+</radialGradient>
+<linearGradient id="paint9_linear_4303_1230" x1="14.5" y1="26" x2="43.5" y2="55" gradientUnits="userSpaceOnUse">
+<stop stop-color="#B6F6C7"/>
+<stop offset="0.277847" stop-color="#43E5CA"/>
+<stop offset="1" stop-color="#26CFE8"/>
+</linearGradient>
+<radialGradient id="paint10_radial_4303_1230" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(11.5 26) rotate(65.4495) scale(44.5253 44.8148)">
+<stop offset="0.585411" stop-color="#2BDABE" stop-opacity="0"/>
+<stop offset="1" stop-color="#119FC5"/>
+</radialGradient>
+<linearGradient id="paint11_linear_4303_1230" x1="63" y1="30" x2="92.5" y2="59.5" gradientUnits="userSpaceOnUse">
+<stop stop-color="#9FF2E4"/>
+<stop offset="0.266186" stop-color="#2BDABE"/>
+<stop offset="0.620556" stop-color="#16BBDA"/>
+<stop offset="1" stop-color="#1384B1"/>
+</linearGradient>
+<clipPath id="clip0_4303_1230">
+<rect width="96" height="96" fill="white"/>
+</clipPath>
+<clipPath id="clip1_4303_1230">
+<rect width="96" height="96" fill="white"/>
+</clipPath>
+</defs>
+</symbol><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#374151"/></marker><style>.t{font-size:15px;font-weight:600;fill:#111827}.s{font-size:12px;fill:#4b5563}.l{font-size:12px;fill:#374151;paint-order:stroke;stroke:#fff;stroke-width:4px}.tag{font-size:10px;font-weight:600;text-transform:uppercase}.h{font-size:13px;font-weight:600;fill:#0078d4}.hg{font-size:13px;font-weight:600;fill:#4b5563}.hg2{font-size:13px;font-weight:600;fill:#6b7280}.title{font-size:24px;font-weight:700;fill:#111827}</style></defs>
+<rect width="1740" height="1030" fill="#ffffff"/>
+<text x="40" y="44" class="title">InventarMind - Solution Architecture</text>
+<circle cx="90" cy="104" r="14" fill="#6b7280"/><path d="M62,152 Q62,126 90,126 Q118,126 118,152 Z" fill="#6b7280"/>
+<text x="140" y="118" class="t">User browser</text>
+<text x="140" y="136" class="s">Supply-chain planner</text>
+<rect x="380" y="76" width="270" height="80" rx="10" fill="#eff6fc" stroke="#0078d4" stroke-width="2"/>
+<use href="#ic-entra" x="392" y="88" width="36" height="36"/>
+<text x="438" y="106" class="t">Microsoft Entra ID</text>
+<text x="438" y="126" class="s">sign-in (MSAL) and API tokens</text>
+<text x="438" y="142" class="s">API app + SPA app registrations</text>
+<path d="M260,112 L380,112" fill="none" stroke="#374151" stroke-width="1.8" marker-end="url(#ah)"/>
+<text x="320" y="104" class="l" text-anchor="middle">OIDC</text>
+<path d="M230,156 L230,260" fill="none" stroke="#374151" stroke-width="1.8" marker-end="url(#ah)"/>
+<text x="240" y="192" class="l" text-anchor="start">HTTPS</text>
+<rect x="40" y="200" width="1190" height="600" rx="14" fill="#fafafa" stroke="#0078d4" stroke-width="2" stroke-dasharray="8 5"/>
+<use href="#ic-aca" x="52" y="208" width="30" height="30"/>
+<text x="1210" y="229" class="h" text-anchor="end">Azure Container Apps environment (inventarmind-env)  -  Log Analytics for console logs</text>
+<rect x="70" y="260" width="330" height="100" rx="10" fill="#ecfdf5" stroke="#0f766e" stroke-width="2"/>
+<use href="#ic-aca" x="82" y="272" width="36" height="36"/>
+<text x="128" y="290" class="t">React dashboard</text>
+<text x="128" y="310" class="s">inventarmind-web - external, port 80</text>
+<text x="128" y="326" class="s">inventarmind.giddyitsolutions.com</text>
+<text x="128" y="342" class="s">HITL approval queue, agent roster</text>
+<text x="390" y="354" class="tag" text-anchor="end" fill="#0f766e">container</text>
+<rect x="70" y="420" width="330" height="120" rx="10" fill="#ecfdf5" stroke="#0f766e" stroke-width="2"/>
+<use href="#ic-aca" x="82" y="432" width="36" height="36"/>
+<text x="128" y="450" class="t">InventarMind API</text>
+<text x="128" y="470" class="s">inventarmind-api - external, port 8000</text>
+<text x="128" y="486" class="s">FastAPI, Entra token validation</text>
+<text x="128" y="502" class="s">approvals, agent runs, /api/agents</text>
+<text x="128" y="518" class="s">runs the workflow in-process</text>
+<text x="390" y="534" class="tag" text-anchor="end" fill="#0f766e">microservice</text>
+<path d="M235,360 L235,420" fill="none" stroke="#374151" stroke-width="1.8" marker-end="url(#ah)"/>
+<text x="245" y="396" class="l" text-anchor="start">REST + bearer token</text>
+<path d="M440,156 L440,430 L400,430" fill="none" stroke="#374151" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#ah)"/>
+<text x="434" y="225" class="l" text-anchor="end">validate token</text>
+<rect x="480" y="240" width="720" height="510" rx="12" fill="#ffffff" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="500" y="262" class="hg">LangGraph supervisor workflow (runs inside the API container)</text>
+<rect x="500" y="290" width="300" height="200" rx="10" fill="#f5f0ff" stroke="#7c3aed" stroke-width="2" stroke-dasharray="6 4"/>
+<use href="#ic-agent" x="512" y="302" width="36" height="36"/>
+<text x="558" y="320" class="t">Orchestrator</text>
+<text x="558" y="340" class="s">OpenAI o3 planner when a key is set</text>
+<text x="558" y="356" class="s">deterministic plan as fallback</text>
+<text x="558" y="372" class="s">routing matrix to downstream nodes</text>
+<text x="558" y="388" class="s">retry twice, then human review</text>
+<text x="790" y="484" class="tag" text-anchor="end" fill="#7c3aed">agent - LLM</text>
+<rect x="860" y="290" width="320" height="90" rx="10" fill="#fff7ed" stroke="#c2410c" stroke-width="2"/>
+<use href="#ic-agent" x="872" y="302" width="36" height="36"/>
+<text x="918" y="320" class="t">Demand &amp; Inventory</text>
+<text x="918" y="340" class="s">no LLM - deterministic Python</text>
+<text x="918" y="356" class="s">deficit = max(0, safety - on_hand)</text>
+<text x="1170" y="374" class="tag" text-anchor="end" fill="#c2410c">agent - no LLM</text>
+<rect x="860" y="395" width="320" height="105" rx="10" fill="#fff7ed" stroke="#c2410c" stroke-width="2"/>
+<use href="#ic-agent" x="872" y="407" width="36" height="36"/>
+<text x="918" y="425" class="t">Allocation &amp; Sourcing</text>
+<text x="918" y="445" class="s">transfer vs. approved-vendor ranking</text>
+<text x="918" y="461" class="s">weighted cost, lead time, reliability</text>
+<text x="918" y="477" class="s">optional LLM can only lower reliability</text>
+<text x="1170" y="494" class="tag" text-anchor="end" fill="#c2410c">deterministic + optional LLM</text>
+<rect x="860" y="515" width="320" height="105" rx="10" fill="#f5f0ff" stroke="#7c3aed" stroke-width="2" stroke-dasharray="6 4"/>
+<use href="#ic-agent" x="872" y="527" width="36" height="36"/>
+<text x="918" y="545" class="t">Procurement &amp; Vendor</text>
+<text x="918" y="565" class="s">LLM function calling maps the PO</text>
+<text x="918" y="581" class="s">Python verifies exact match, then writes</text>
+<text x="918" y="597" class="s">Draft PO as JSON, XML or EDI 850</text>
+<text x="1170" y="614" class="tag" text-anchor="end" fill="#7c3aed">agent - LLM</text>
+<rect x="500" y="640" width="680" height="80" rx="10" fill="#fff7ed" stroke="#c2410c" stroke-width="2"/>
+<text x="520" y="670" class="t">Human approval hold (HITL gate)</text>
+<text x="520" y="690" class="s">proposal is stored as a pending approval in PostgreSQL</text>
+<text x="520" y="706" class="s">ERP draft PO and vendor email only after po_approved and value &lt; $50k</text>
+<text x="1170" y="714" class="tag" text-anchor="end" fill="#c2410c">gate</text>
+<path d="M800,330 L860,330" fill="none" stroke="#374151" stroke-width="1.8" marker-end="url(#ah)"/>
+<text x="830" y="322" class="l" text-anchor="middle">route</text>
+<path d="M800,447 L860,447" fill="none" stroke="#374151" stroke-width="1.8" marker-end="url(#ah)"/>
+<path d="M800,470 L830,470 L830,565 L860,565" fill="none" stroke="#374151" stroke-width="1.8" marker-end="url(#ah)"/>
+<path d="M1020,610 L1020,640" fill="none" stroke="#374151" stroke-width="1.8" marker-end="url(#ah)"/>
+<text x="1032" y="630" class="l" text-anchor="start">proposal</text>
+<path d="M400,470 L500,470" fill="none" stroke="#374151" stroke-width="1.8" marker-end="url(#ah)"/>
+<text x="450" y="462" class="l" text-anchor="middle">run command</text>
+<text x="1270" y="229" class="hg2">External services</text>
+<rect x="1270" y="250" width="420" height="80" rx="10" fill="#f3f4f6" stroke="#6b7280" stroke-width="2"/>
+<circle cx="1300" cy="280" r="18" fill="#6b7280"/>
+<text x="1300" y="285" text-anchor="middle" style="font-size:13px;font-weight:700;fill:#fff">AI</text>
+<text x="1328" y="280" class="t">OpenAI API</text>
+<text x="1328" y="300" class="s">planner (o3), sourcing risk notes,</text>
+<text x="1328" y="316" class="s">PO field mapping - all optional</text>
+<rect x="1270" y="350" width="420" height="80" rx="10" fill="#f3f4f6" stroke="#6b7280" stroke-width="2"/>
+<use href="#ic-bc" x="1282" y="362" width="36" height="36"/>
+<text x="1328" y="380" class="t">Dynamics 365 Business Central</text>
+<text x="1328" y="400" class="s">Draft purchase orders only (API v2.0)</text>
+<text x="1328" y="416" class="s">writes off: BC_WRITES_ENABLED=false</text>
+<rect x="1270" y="450" width="420" height="80" rx="10" fill="#f3f4f6" stroke="#6b7280" stroke-width="2"/>
+<circle cx="1300" cy="480" r="18" fill="#6b7280"/>
+<text x="1300" y="485" text-anchor="middle" style="font-size:13px;font-weight:700;fill:#fff">GH</text>
+<text x="1328" y="480" class="t">GitHub Actions</text>
+<text x="1328" y="500" class="s">OIDC login, builds images, pushes to ACR</text>
+<text x="1328" y="516" class="s">updates the Container Apps</text>
+<path d="M1200,290 L1270,290" fill="none" stroke="#374151" stroke-width="1.8" marker-end="url(#ah)"/>
+<text x="1235" y="282" class="l" text-anchor="middle">LLM calls</text>
+<path d="M1180,570 L1250,570 L1250,400 L1270,400" fill="none" stroke="#374151" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#ah)"/>
+<text x="1258" y="560" class="l" text-anchor="start">draft PO</text>
+<path d="M1400,530 L1400,700 L1230,700" fill="none" stroke="#374151" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#ah)"/>
+<text x="1315" y="692" class="l" text-anchor="middle">OIDC deploy</text>
+<rect x="40" y="840" width="265" height="100" rx="10" fill="#eff6fc" stroke="#0078d4" stroke-width="2"/>
+<use href="#ic-pg" x="52" y="852" width="36" height="36"/>
+<text x="98" y="870" class="t">Azure PostgreSQL</text>
+<text x="98" y="890" class="s">Flexible Server, B1ms</text>
+<text x="98" y="906" class="s">North Europe, TLS required</text>
+<text x="98" y="922" class="s">approval records</text>
+<rect x="319" y="840" width="265" height="100" rx="10" fill="#eff6fc" stroke="#0078d4" stroke-width="2"/>
+<use href="#ic-eh" x="331" y="852" width="36" height="36"/>
+<text x="377" y="870" class="t">Azure Event Hubs</text>
+<text x="377" y="890" class="s">Kafka endpoint :9093</text>
+<text x="377" y="906" class="s">SASL OAUTHBEARER (Entra only)</text>
+<text x="377" y="922" class="s">approval-decisions topic</text>
+<rect x="598" y="840" width="265" height="100" rx="10" fill="#eff6fc" stroke="#0078d4" stroke-width="2"/>
+<use href="#ic-kv" x="610" y="852" width="36" height="36"/>
+<text x="656" y="870" class="t">Azure Key Vault</text>
+<text x="656" y="890" class="s">database-url, openai-api-key</text>
+<text x="656" y="906" class="s">RBAC, read by API identity</text>
+<rect x="877" y="840" width="265" height="100" rx="10" fill="#eff6fc" stroke="#0078d4" stroke-width="2"/>
+<use href="#ic-acr" x="889" y="852" width="36" height="36"/>
+<text x="935" y="870" class="t">Container Registry</text>
+<text x="935" y="890" class="s">api and web images</text>
+<text x="935" y="906" class="s">pull via AcrPull role</text>
+<rect x="1156" y="840" width="265" height="100" rx="10" fill="#eff6fc" stroke="#0078d4" stroke-width="2"/>
+<use href="#ic-mi" x="1168" y="852" width="36" height="36"/>
+<text x="1214" y="870" class="t">Managed identities</text>
+<text x="1214" y="890" class="s">api, web and GitHub deploy</text>
+<text x="1214" y="906" class="s">least-privilege RBAC</text>
+<rect x="1435" y="840" width="265" height="100" rx="10" fill="#eff6fc" stroke="#0078d4" stroke-width="2"/>
+<use href="#ic-law" x="1447" y="852" width="36" height="36"/>
+<text x="1493" y="870" class="t">Log Analytics</text>
+<text x="1493" y="890" class="s">console and system logs</text>
+<text x="1493" y="906" class="s">workspace inventarmind-logs</text>
+<path d="M172,540 L172,840" fill="none" stroke="#374151" stroke-width="1.8" marker-end="url(#ah)"/>
+<text x="180" y="620" class="l" text-anchor="start">SQL / TLS</text>
+<path d="M300,540 L300,815 L451,815 L451,840" fill="none" stroke="#374151" stroke-width="1.8" marker-end="url(#ah)"/>
+<text x="292" y="700" class="l" text-anchor="end">decision events</text>
+<path d="M360,540 L360,790 L730,790 L730,840" fill="none" stroke="#374151" stroke-width="1.8" marker-end="url(#ah)"/>
+<text x="368" y="740" class="l" text-anchor="start">secrets</text>
+<path d="M1009,840 L1009,800" fill="none" stroke="#374151" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#ah)"/>
+<text x="1045" y="822" class="l" text-anchor="middle">image pull</text>
+<path d="M1288,840 L1288,790 L1230,790" fill="none" stroke="#374151" stroke-width="1.8" marker-end="url(#ah)"/>
+<text x="1262" y="782" class="l" text-anchor="middle">identity</text>
+<path d="M1567,840 L1567,760 L1230,760" fill="none" stroke="#374151" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#ah)"/>
+<text x="1410" y="752" class="l" text-anchor="middle">logs</text>
+<text x="40" y="984" class="h">Legend</text>
+<rect x="110" y="970" width="26" height="18" rx="4" fill="#eff6fc" stroke="#0078d4" stroke-width="2"/>
+<text x="144" y="984" class="s">Azure resource</text>
+<rect x="310" y="970" width="26" height="18" rx="4" fill="#ecfdf5" stroke="#0f766e" stroke-width="2"/>
+<text x="344" y="984" class="s">Container App</text>
+<rect x="500" y="970" width="26" height="18" rx="4" fill="#f5f0ff" stroke="#7c3aed" stroke-width="2" stroke-dasharray="6 4"/>
+<text x="534" y="984" class="s">Agent node using an LLM</text>
+<rect x="760" y="970" width="26" height="18" rx="4" fill="#fff7ed" stroke="#c2410c" stroke-width="2"/>
+<text x="794" y="984" class="s">Deterministic node</text>
+<rect x="960" y="970" width="26" height="18" rx="4" fill="#f3f4f6" stroke="#6b7280" stroke-width="2"/>
+<text x="994" y="984" class="s">External service</text>
+<text x="40" y="1014" class="s">Azure icons: Microsoft Azure Architecture Icons. Business Central: Microsoft Dynamics 365 icons. Container Apps use the Container Apps Environments icon; agent nodes use the Bot Services icon.</text>
+</svg>
