@@ -1,4 +1,5 @@
 import os
+import ssl
 from typing import Any
 
 from aiokafka.abc import AbstractTokenProvider
@@ -36,6 +37,7 @@ def kafka_client_config() -> dict[str, Any]:
 
     mechanism = os.getenv("KAFKA_SASL_MECHANISM", "OAUTHBEARER").upper()
     config["sasl_mechanism"] = mechanism
+    config["ssl_context"] = ssl.create_default_context()
     if mechanism == "OAUTHBEARER":
         host = config["bootstrap_servers"].split(",")[0].rsplit(":", 1)[0]
         config["sasl_oauth_token_provider"] = EntraTokenProvider(f"https://{host}/.default")

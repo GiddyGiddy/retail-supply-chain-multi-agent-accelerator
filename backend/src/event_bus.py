@@ -18,18 +18,20 @@ class EventBus:
 
     async def start(self) -> None:
         """Connect to Kafka. A broker outage must not take the API down, so failures are logged."""
-        producer = AIOKafkaProducer(
-            **kafka_client_config(),
-            value_serializer=lambda value: json.dumps(value).encode("utf-8"),
-        )
+        producer: AIOKafkaProducer | None = None
         try:
+            producer = AIOKafkaProducer(
+                **kafka_client_config(),
+                value_serializer=lambda value: json.dumps(value).encode("utf-8"),
+            )
             await asyncio.wait_for(producer.start(), timeout=START_TIMEOUT_SECONDS)
         except Exception:
             logger.exception("Kafka event bus unavailable; events will not be published")
-            try:
-                await producer.stop()
-            except Exception:
-                pass
+            if producer is not None:
+                try:
+                    await producer.stop()
+                except Exception:
+                    pass
             return
         self._producer = producer
 

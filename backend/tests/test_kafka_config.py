@@ -19,6 +19,7 @@ def test_event_hubs_uses_entra_oauthbearer_scoped_to_namespace(monkeypatch) -> N
     provider = config["sasl_oauth_token_provider"]
     assert isinstance(provider, EntraTokenProvider)
     assert provider._scope == "https://ns.servicebus.windows.net/.default"
+    assert config["ssl_context"] is not None
     asyncio.run(provider._credential.close())
 
 
