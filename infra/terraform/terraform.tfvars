@@ -13,3 +13,5 @@ postgres_admin_username = "supplyadmin"
 
 entra_tenant_id     = "fd58bbca-b54d-436b-a7bc-3cb0e2c1181a"
 entra_api_client_id = "4ea32a70-966a-48bb-bc85-35b908e18a24"
+
+web_custom_domain = "inventarmind.giddyitsolutions.com"

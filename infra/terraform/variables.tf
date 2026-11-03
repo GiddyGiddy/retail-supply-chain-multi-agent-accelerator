@@ -86,6 +86,12 @@ variable "web_image" {
   default     = "mcr.microsoft.com/k8se/quickstart:latest"
 }
 
+variable "web_custom_domain" {
+  description = "Custom hostname for the frontend (DNS CNAME and asuid TXT records must exist). Empty = none."
+  type        = string
+  default     = ""
+}
+
 variable "tags" {
   type    = map(string)
   default = { application = "inventarmind" }

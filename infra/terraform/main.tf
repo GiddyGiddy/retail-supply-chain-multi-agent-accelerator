@@ -33,6 +33,11 @@ resource "azurerm_container_app_environment" "main" {
   resource_group_name        = data.azurerm_resource_group.main.name
   log_analytics_workspace_id = azurerm_log_analytics_workspace.main.id
   tags                       = var.tags
+
+  lifecycle {
+    # Azure adds the default Consumption workload profile itself.
+    ignore_changes = [workload_profile]
+  }
 }
 
 # ---------------------------------------------------------------- registry
@@ -270,7 +275,7 @@ resource "azurerm_container_app" "api" {
       }
       env {
         name  = "CORS_ORIGINS"
-        value = local.web_url
+        value = join(",", compact([local.web_url, var.web_custom_domain == "" ? "" : "https://${var.web_custom_domain}"]))
       }
       env {
         name  = "KAFKA_BOOTSTRAP_SERVERS"
@@ -298,7 +303,7 @@ resource "azurerm_container_app" "api" {
 
   lifecycle {
     # CI/CD owns the running image after the first deployment.
-    ignore_changes = [template[0].container[0].image]
+    ignore_changes = [template[0].container[0].image, workload_profile_name]
   }
 
   depends_on = [azurerm_role_assignment.api_acr_pull, azurerm_role_assignment.api_secrets_user, time_sleep.rbac_propagation]
@@ -345,7 +350,7 @@ resource "azurerm_container_app" "web" {
   }
 
   lifecycle {
-    ignore_changes = [template[0].container[0].image]
+    ignore_changes = [template[0].container[0].image, workload_profile_name]
   }
 
   depends_on = [azurerm_role_assignment.web_acr_pull]
