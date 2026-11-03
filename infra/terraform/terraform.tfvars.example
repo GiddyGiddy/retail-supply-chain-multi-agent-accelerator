@@ -1,0 +1,5 @@
+subscription_id          = "00000000-0000-0000-0000-000000000000"
+location                 = "eastus"
+name_prefix              = "retailflow"
+postgres_admin_username  = "supplyadmin"
+# Set the password with TF_VAR_postgres_admin_password; never commit it here.

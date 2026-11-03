@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: supply-chain-frontend
+  namespace: retail-supply-chain
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: supply-chain-frontend
+  template:
+    metadata:
+      labels:
+        app: supply-chain-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: YOUR_REGISTRY/supply-chain-frontend:latest
+          ports:
+            - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: supply-chain-frontend
+  namespace: retail-supply-chain
+spec:
+  type: ClusterIP
+  selector:
+    app: supply-chain-frontend
+  ports:
+    - port: 80
+      targetPort: 80
