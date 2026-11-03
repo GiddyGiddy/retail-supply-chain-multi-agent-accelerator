@@ -26,7 +26,7 @@ async def lifespan(_: FastAPI):
         await event_bus.stop()
 
 
-app = FastAPI(title="Retail Agentic Supply Chain API", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="InventarMind API", version="0.1.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,

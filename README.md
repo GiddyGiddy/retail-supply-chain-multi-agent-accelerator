@@ -1,4 +1,4 @@
-# Retail Agentic Supply Chain
+# InventarMind
 
 A runnable starter for a human-supervised retail supply-chain workflow. It includes a React dashboard, a FastAPI API, a LangGraph agent workflow, PostgreSQL persistence, Kafka events, local Docker Compose, and Azure Terraform/Kubernetes deployment starting points.
 
