@@ -189,7 +189,7 @@ def po_to_xml(po: PurchaseOrderDraft) -> str:
 def build_edi_850(po: PurchaseOrderDraft) -> str:
     """Minimal X12 850 body for trading partners that require EDI; envelope (ISA/GS) is added by the VAN/gateway."""
     segments = [
-        f"ST*850*0001",
+        "ST*850*0001",
         f"BEG*00*NE*{po.po_reference}**{date.today():%Y%m%d}",
         f"CUR*BY*{po.currency}",
     ]

@@ -30,6 +30,10 @@ jobs:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: backend/requirements.txt
+      - name: Lint (correctness rules)
+        run: |
+          pip install ruff
+          ruff check --isolated --select E9,F backend agents
       - name: Backend tests
         env:
           PYTHONPATH: backend
@@ -46,8 +50,36 @@ jobs:
           npm --prefix frontend ci
           npm --prefix frontend run build
 
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build API image (no push)
+        run: docker build -f backend/Dockerfile -t api-ci .
+      - name: Build frontend image (no push)
+        run: docker build -f frontend/Dockerfile -t web-ci frontend
+      - name: Frontend serves client-side routes
+        run: |
+          docker run -d --name web-ci -p 8080:80 web-ci
+          for i in $(seq 1 10); do curl -fsS -o /dev/null http://localhost:8080/ && break; sleep 1; done
+          code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/approvals)
+          echo "GET /approvals -> $code"
+          [ "$code" = "200" ]
+
+  terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - name: Format check
+        run: terraform -chdir=infra/terraform fmt -check -recursive
+      - name: Validate
+        run: |
+          terraform -chdir=infra/terraform init -backend=false -input=false
+          terraform -chdir=infra/terraform validate
+
   deploy:
-    needs: test
+    needs: [test, docker-build, terraform]
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment: production
