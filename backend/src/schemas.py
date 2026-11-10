@@ -12,6 +12,14 @@ class ApprovalDecision(BaseModel):
     decision: Literal["approved", "rejected"]
 
 
+class PurchaseOrderDispatchResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    reference: str
+    status: str
+    approved_at: datetime
+
+
 class ApprovalResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -21,6 +29,7 @@ class ApprovalResponse(BaseModel):
     status: str
     payload: dict
     created_at: datetime
+    dispatch: PurchaseOrderDispatchResponse | None = None
 
 
 class AgentInfo(BaseModel):
