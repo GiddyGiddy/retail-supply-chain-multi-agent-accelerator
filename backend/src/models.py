@@ -1,8 +1,8 @@
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from sqlalchemy import JSON, DateTime, String, Text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import JSON, DateTime, ForeignKey, String, Text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.database import Base
 
@@ -18,3 +18,20 @@ class Approval(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
     )
+    dispatch: Mapped["PurchaseOrderDispatch | None"] = relationship(
+        back_populates="approval", uselist=False
+    )
+
+
+class PurchaseOrderDispatch(Base):
+    __tablename__ = "purchase_order_dispatches"
+
+    approval_id: Mapped[str] = mapped_column(ForeignKey("approvals.id"), primary_key=True)
+    reference: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default="held")
+    approved_by: Mapped[str] = mapped_column(String(255), nullable=False)
+    approved_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
+    )
+    approved_payload: Mapped[dict] = mapped_column(JSON, nullable=False)
+    approval: Mapped[Approval] = relationship(back_populates="dispatch")

@@ -42,7 +42,7 @@ Proposals wait in the approval queue; nothing is written to the ERP without huma
 
 ### Known gaps
 
-- Approving a proposal does not yet trigger the Business Central write.
+- Approving a vendor proposal records a held PO handoff, but does not yet trigger a Business Central write.
 - The Kafka consumer only logs events; inventory events do not yet feed the workflow.
 - Live OpenAI calls are untested; the planner is active only once `openai-api-key` exists in Key Vault.
 - Vendor email sending and acknowledgement checks are placeholders.
@@ -75,7 +75,13 @@ in the API enterprise application, and have those users acquire new tokens
 before deploying this change. Without the role, decision requests return 403;
 reading the queue remains available to authenticated users. Local development
 with authentication disabled does not enforce the role. Approval does not yet
-dispatch a Business Central purchase order.
+dispatch a Business Central purchase order. Vendor approvals create a durable,
+held handoff containing the approved proposal, approver, timestamp and a unique
+reference in the same database transaction as the decision. There is no dispatcher
+yet, so a held handoff does not mean a draft exists in Business Central.
+The API creates the new `purchase_order_dispatches` table at startup; its
+database identity must have permission to create tables. Existing approved
+proposals are not automatically backfilled.
 
 For deployments, set `AUTH_ENABLED=true`, `ENTRA_TENANT_ID`, and `ENTRA_API_CLIENT_ID` in the API environment. Configure `VITE_AUTH_ENABLED=true`, `VITE_ENTRA_TENANT_ID`, `VITE_ENTRA_CLIENT_ID`, and `VITE_ENTRA_API_SCOPE` for the frontend. The API validates Entra-issued RS256 access tokens, including issuer and audience. Do not use the local unauthenticated profile in a reachable environment.
 

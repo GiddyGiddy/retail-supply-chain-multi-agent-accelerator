@@ -3,8 +3,8 @@ from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy import select, update
+from sqlalchemy.orm import Session, selectinload
 
 from agents.graph.registry import agent_catalog
 from agents.graph.workflow import run_supply_chain_workflow
@@ -12,7 +12,7 @@ from src.auth import CurrentUser, get_current_user, require_approval_user
 from src.config.settings import settings
 from src.database import Base, engine, get_db
 from src.event_bus import event_bus
-from src.models import Approval
+from src.models import Approval, PurchaseOrderDispatch
 from src.schemas import AgentInfo, AgentRunRequest, AgentRunResponse, ApprovalDecision, ApprovalResponse
 
 
@@ -51,14 +51,16 @@ def list_approvals(
     _: Annotated[CurrentUser, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
 ) -> list[Approval]:
-    return list(db.scalars(select(Approval).order_by(Approval.created_at.desc())).all())
+    return list(db.scalars(
+        select(Approval).options(selectinload(Approval.dispatch)).order_by(Approval.created_at.desc())
+    ).all())
 
 
 @app.post("/api/approvals/{approval_id}/decision", response_model=ApprovalResponse)
 async def decide_approval(
     approval_id: str,
     decision: ApprovalDecision,
-    _: Annotated[CurrentUser, Depends(require_approval_user)],
+    user: Annotated[CurrentUser, Depends(require_approval_user)],
     db: Annotated[Session, Depends(get_db)],
 ) -> Approval:
     approval = db.get(Approval, approval_id)
@@ -67,7 +69,24 @@ async def decide_approval(
     if approval.status != "pending":
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Approval was already decided")
 
-    approval.status = decision.decision
+    updated = db.execute(
+        update(Approval)
+        .where(Approval.id == approval_id, Approval.status == "pending")
+        .values(status=decision.decision)
+        .execution_options(synchronize_session=False)
+    )
+    if updated.rowcount != 1:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Approval was already decided")
+
+    if decision.decision == "approved" and approval.payload.get("sourcing_strategy") == "VENDOR_PO":
+        db.add(PurchaseOrderDispatch(
+            approval_id=approval.id,
+            reference=f"IM-{approval.id}",
+            status="held",
+            approved_by=user.subject,
+            approved_payload=approval.payload,
+        ))
     db.commit()
     db.refresh(approval)
     await event_bus.publish(

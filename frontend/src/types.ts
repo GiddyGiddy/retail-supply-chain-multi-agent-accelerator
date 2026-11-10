@@ -5,4 +5,5 @@ export interface Approval {
   status: "pending" | "approved" | "rejected";
   payload: Record<string, unknown>;
   created_at: string;
+  dispatch: { reference: string; status: string; approved_at: string } | null;
 }

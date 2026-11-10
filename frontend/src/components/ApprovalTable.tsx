@@ -24,7 +24,14 @@ export function ApprovalTable({ approvals, onDecision, busyId }: ApprovalTablePr
                 <strong>{approval.title}</strong>
                 <span className="table-summary">{approval.summary}</span>
               </td>
-              <td><span className={`status-pill ${approval.status}`}>{approval.status}</span></td>
+              <td>
+                <span className={`status-pill ${approval.status}`}>{approval.status}</span>
+                {approval.dispatch && (
+                  <span className="table-summary">
+                    PO handoff: {approval.dispatch.status} (not sent to Business Central)
+                  </span>
+                )}
+              </td>
               <td>{new Date(approval.created_at).toLocaleString()}</td>
               <td>
                 {approval.status === "pending" ? (
