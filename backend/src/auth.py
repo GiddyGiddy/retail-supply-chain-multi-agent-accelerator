@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from functools import lru_cache
+from typing import Annotated
 
 import jwt
 from fastapi import Depends, HTTPException, status
@@ -14,6 +15,7 @@ bearer_scheme = HTTPBearer(auto_error=False)
 @dataclass(frozen=True)
 class CurrentUser:
     subject: str
+    roles: tuple[str, ...] = ()
 
 
 @lru_cache(maxsize=1)
@@ -56,4 +58,22 @@ def get_current_user(
             detail="Invalid access token",
             headers={"WWW-Authenticate": "Bearer"},
         ) from exc
-    return CurrentUser(subject=claims["sub"])
+    roles = claims.get("roles", [])
+    if not isinstance(roles, list) or not all(isinstance(role, str) for role in roles):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid roles claim",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return CurrentUser(subject=claims["sub"], roles=tuple(roles))
+
+
+def require_approval_user(
+    user: Annotated[CurrentUser, Depends(get_current_user)],
+) -> CurrentUser:
+    if settings.auth_enabled and "PurchaseOrder.Approver" not in user.roles:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="PurchaseOrder.Approver role required",
+        )
+    return user

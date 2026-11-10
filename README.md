@@ -68,6 +68,15 @@ The supervisor uses the configured OpenAI reasoning model when `OPENAI_API_KEY` 
 
 ## Authentication
 
+When authentication is enabled, approval and rejection decisions require the
+`PurchaseOrder.Approver` application role in the API access token. Define this
+role on the API app registration, assign it to the appropriate users or groups
+in the API enterprise application, and have those users acquire new tokens
+before deploying this change. Without the role, decision requests return 403;
+reading the queue remains available to authenticated users. Local development
+with authentication disabled does not enforce the role. Approval does not yet
+dispatch a Business Central purchase order.
+
 For deployments, set `AUTH_ENABLED=true`, `ENTRA_TENANT_ID`, and `ENTRA_API_CLIENT_ID` in the API environment. Configure `VITE_AUTH_ENABLED=true`, `VITE_ENTRA_TENANT_ID`, `VITE_ENTRA_CLIENT_ID`, and `VITE_ENTRA_API_SCOPE` for the frontend. The API validates Entra-issued RS256 access tokens, including issuer and audience. Do not use the local unauthenticated profile in a reachable environment.
 
 ## Repository map

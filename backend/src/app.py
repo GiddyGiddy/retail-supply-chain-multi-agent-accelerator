@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from agents.graph.registry import agent_catalog
 from agents.graph.workflow import run_supply_chain_workflow
-from src.auth import CurrentUser, get_current_user
+from src.auth import CurrentUser, get_current_user, require_approval_user
 from src.config.settings import settings
 from src.database import Base, engine, get_db
 from src.event_bus import event_bus
@@ -58,7 +58,7 @@ def list_approvals(
 async def decide_approval(
     approval_id: str,
     decision: ApprovalDecision,
-    _: Annotated[CurrentUser, Depends(get_current_user)],
+    _: Annotated[CurrentUser, Depends(require_approval_user)],
     db: Annotated[Session, Depends(get_db)],
 ) -> Approval:
     approval = db.get(Approval, approval_id)
