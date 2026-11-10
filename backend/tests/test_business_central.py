@@ -115,6 +115,27 @@ def test_line_failure_rolls_back_draft_and_error_has_no_secrets() -> None:
     assert SECRET not in str(error.value) and "tok" not in str(error.value).split()
 
 
+def test_durable_dispatch_retains_partial_draft_for_review() -> None:
+    bc = FakeBC(fail_lines=True)
+    seen = []
+    with pytest.raises(BusinessCentralError):
+        _client(bc).create_draft_purchase_order(
+            PAYLOAD, on_order_created=seen.append, reject_existing=True,
+        )
+    assert seen == ["po-guid"]
+    assert not any(method == "DELETE" for method, _ in bc.calls)
+
+
+def test_durable_dispatch_rejects_existing_reference_for_review() -> None:
+    bc = FakeBC(existing=[{
+        "id": "old", "number": "106000", "status": "Draft",
+        "purchaseOrderLines": [{"lineType": "Comment", "description": PAYLOAD["po_reference"]}],
+    }])
+    with pytest.raises(BusinessCentralError):
+        _client(bc).create_draft_purchase_order(PAYLOAD, reject_existing=True)
+    assert not any(method == "POST" for method, _ in bc.calls)
+
+
 def test_total_mismatch_is_reported() -> None:
     result = _client(FakeBC(total=99.0)).create_draft_purchase_order(PAYLOAD)
     assert result["total_matches"] is False

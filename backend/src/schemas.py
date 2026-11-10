@@ -12,12 +12,22 @@ class ApprovalDecision(BaseModel):
     decision: Literal["approved", "rejected"]
 
 
+class PurchaseOrderDispatchAttemptResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    started_at: datetime
+    outcome: str
+    erp_order_id: str | None
+    erp_order_number: str | None
+
+
 class PurchaseOrderDispatchResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     reference: str
     status: str
     approved_at: datetime
+    attempt: PurchaseOrderDispatchAttemptResponse | None = None
 
 
 class ApprovalResponse(BaseModel):

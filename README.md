@@ -42,7 +42,7 @@ Proposals wait in the approval queue; nothing is written to the ERP without huma
 
 ### Known gaps
 
-- Approving a vendor proposal records a held PO handoff, but does not yet trigger a Business Central write.
+- Approving a vendor proposal records a held PO handoff; automatic dispatch is not enabled.
 - The Kafka consumer only logs events; inventory events do not yet feed the workflow.
 - Live OpenAI calls are untested; the planner is active only once `openai-api-key` exists in Key Vault.
 - Vendor email sending and acknowledgement checks are placeholders.
@@ -75,13 +75,29 @@ in the API enterprise application, and have those users acquire new tokens
 before deploying this change. Without the role, decision requests return 403;
 reading the queue remains available to authenticated users. Local development
 with authentication disabled does not enforce the role. Approval does not yet
-dispatch a Business Central purchase order. Vendor approvals create a durable,
+automatically dispatch a Business Central purchase order. Vendor approvals create a durable,
 held handoff containing the approved proposal, approver, timestamp and a unique
-reference in the same database transaction as the decision. There is no dispatcher
-yet, so a held handoff does not mean a draft exists in Business Central.
-The API creates the new `purchase_order_dispatches` table at startup; its
+reference in the same database transaction as the decision. A held handoff does
+not mean a draft exists in Business Central.
+The API creates `purchase_order_dispatches` and `purchase_order_dispatch_attempts` at startup; its
 database identity must have permission to create tables. Existing approved
 proposals are not automatically backfilled.
+
+The approver-only `POST /api/approvals/{approval_id}/dispatch` endpoint is
+disabled by default and requires authentication, an approver role, both `BC_DISPATCH_ENABLED=true` and
+`BC_WRITES_ENABLED=true`, plus valid Business Central configuration. Keep both
+disabled until sandbox testing and business approval are complete. The current
+workflow uses demo data and is not suitable for real orders. Dispatch
+validates the saved proposal and supports USD orders below 50,000 only; other
+currencies or amounts require further review. A successful request records a
+draft order number and ID; it does not release, post, or email the order.
+The dispatcher atomically claims each handoff once. An error or an interrupted
+`in_progress` attempt requires manual reconciliation in Business Central,
+including checking for incomplete headers and lines. A timeout may leave a
+header without a reference or known ID. Do not retry or create a replacement
+until an operator has verified the outcome; there is no automatic retry or
+reset endpoint. Email and vendor acknowledgements remain separate, unimplemented steps.
+The dashboard displays handoff status, but does not yet provide a dispatch button.
 
 For deployments, set `AUTH_ENABLED=true`, `ENTRA_TENANT_ID`, and `ENTRA_API_CLIENT_ID` in the API environment. Configure `VITE_AUTH_ENABLED=true`, `VITE_ENTRA_TENANT_ID`, `VITE_ENTRA_CLIENT_ID`, and `VITE_ENTRA_API_SCOPE` for the frontend. The API validates Entra-issued RS256 access tokens, including issuer and audience. Do not use the local unauthenticated profile in a reachable environment.
 
