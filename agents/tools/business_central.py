@@ -13,7 +13,7 @@ import os
 import re
 import time
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Callable
 
 import httpx
 
@@ -187,7 +187,11 @@ class BusinessCentralClient:
                 return order
         return None
 
-    def create_draft_purchase_order(self, payload: dict[str, Any]) -> dict[str, Any]:
+    def create_draft_purchase_order(
+        self, payload: dict[str, Any], *,
+        on_order_created: Callable[[str], None] | None = None,
+        reject_existing: bool = False,
+    ) -> dict[str, Any]:
         vendor_number = _code(payload.get("vendor_id"), "vendor number")
         reference = str(payload.get("po_reference", ""))[:100]
         if not reference:
@@ -199,6 +203,8 @@ class BusinessCentralClient:
         self.get_vendor(vendor_number)
         existing = self.find_draft_by_reference(vendor_number, reference)
         if existing:
+            if reject_existing:
+                raise BusinessCentralError("A draft with this reference already exists; manual review required")
             return self._result(existing["number"], existing["id"], "Draft", None, duplicate=True)
 
         body: dict[str, Any] = {"vendorNumber": vendor_number}
@@ -212,6 +218,8 @@ class BusinessCentralClient:
 
         order = self._request("POST", "purchaseOrders", json=body)
         order_id, etag = order["id"], order.get("@odata.etag")
+        if on_order_created is not None:
+            on_order_created(order_id)
         try:
             self._request(
                 "POST",
@@ -234,6 +242,9 @@ class BusinessCentralClient:
                 self._request("POST", f"purchaseOrders({order_id})/purchaseOrderLines", json=line_body)
                 expected += quantity * cost
         except Exception:
+            if on_order_created is not None:
+                # The durable dispatcher retains the known order ID for manual reconciliation.
+                raise
             # Remove the half-built draft so retries start clean.
             try:
                 self._request("DELETE", f"purchaseOrders({order_id})", etag=etag)

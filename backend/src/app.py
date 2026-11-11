@@ -13,7 +13,11 @@ from src.config.settings import settings
 from src.database import Base, engine, get_db
 from src.event_bus import event_bus
 from src.models import Approval, PurchaseOrderDispatch
-from src.schemas import AgentInfo, AgentRunRequest, AgentRunResponse, ApprovalDecision, ApprovalResponse
+from src.purchase_order_dispatch import dispatch_held_order
+from src.schemas import (
+    AgentInfo, AgentRunRequest, AgentRunResponse, ApprovalDecision, ApprovalResponse,
+    PurchaseOrderDispatchResponse,
+)
 
 
 @asynccontextmanager
@@ -52,7 +56,8 @@ def list_approvals(
     db: Annotated[Session, Depends(get_db)],
 ) -> list[Approval]:
     return list(db.scalars(
-        select(Approval).options(selectinload(Approval.dispatch)).order_by(Approval.created_at.desc())
+        select(Approval).options(selectinload(Approval.dispatch).selectinload(PurchaseOrderDispatch.attempt))
+        .order_by(Approval.created_at.desc())
     ).all())
 
 
@@ -94,6 +99,15 @@ async def decide_approval(
         {"approval_id": approval.id, "decision": approval.status},
     )
     return approval
+
+
+@app.post("/api/approvals/{approval_id}/dispatch", response_model=PurchaseOrderDispatchResponse)
+def dispatch_approval(
+    approval_id: str,
+    user: Annotated[CurrentUser, Depends(require_approval_user)],
+    db: Annotated[Session, Depends(get_db)],
+) -> PurchaseOrderDispatch:
+    return dispatch_held_order(db, approval_id, user.subject)
 
 
 @app.post("/api/agents/runs", response_model=AgentRunResponse, status_code=status.HTTP_201_CREATED)
