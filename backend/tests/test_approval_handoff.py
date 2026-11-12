@@ -178,6 +178,7 @@ def prepare_sandbox_dispatch(api, monkeypatch):
     assert client.post(f"/api/approvals/{approval_id}/decision", json={"decision": "approved"}).status_code == 200
     monkeypatch.setenv("BC_DISPATCH_ENABLED", "true")
     monkeypatch.setenv("BC_SANDBOX_DISPATCH_ENABLED", "true")
+    monkeypatch.setenv("BC_STANDARD_DISPATCH_ENABLED", "false")
     monkeypatch.setattr(purchase_order_dispatch, "settings", SimpleNamespace(auth_enabled=True))
     config = purchase_order_dispatch.BusinessCentralConfig(
         tenant_id="8d132419-f288-4bcb-b3b9-42e1ffc6d824",
@@ -381,11 +382,48 @@ def prepare_dispatch(api, monkeypatch, currency="USD"):
         db.commit()
     assert client.post(f"/api/approvals/{approval_id}/decision", json={"decision": "approved"}).status_code == 200
     monkeypatch.setenv("BC_DISPATCH_ENABLED", "true")
+    monkeypatch.setenv("BC_STANDARD_DISPATCH_ENABLED", "true")
     monkeypatch.setattr(purchase_order_dispatch, "settings", SimpleNamespace(auth_enabled=True))
     monkeypatch.setattr(purchase_order_dispatch.BusinessCentralConfig, "from_env", lambda: type(
         "Config", (), {"validate": lambda self: None},
     )())
     return client, sessions, approval_id
+
+
+@pytest.mark.parametrize("flag", [None, "false", "invalid"])
+def test_standard_dispatch_is_fail_closed_when_not_explicitly_enabled(api, monkeypatch, flag):
+    client, sessions, approval_id = prepare_dispatch(api, monkeypatch)
+    if flag is None:
+        monkeypatch.delenv("BC_STANDARD_DISPATCH_ENABLED", raising=False)
+    else:
+        monkeypatch.setenv("BC_STANDARD_DISPATCH_ENABLED", flag)
+    monkeypatch.setenv("BC_SANDBOX_DISPATCH_ENABLED", "true")
+    monkeypatch.setattr(
+        purchase_order_dispatch, "BusinessCentralClient",
+        lambda *args: pytest.fail("A standard handoff must not create a client when disabled"),
+    )
+    response = client.post(f"/api/approvals/{approval_id}/dispatch")
+    assert response.status_code == 503
+    assert "Standard purchase order dispatch is disabled" in response.json()["detail"]
+    with sessions() as db:
+        dispatch = db.get(PurchaseOrderDispatch, approval_id)
+        assert dispatch.status == "held"
+        assert dispatch.attempt is None
+
+
+def test_sandbox_marker_cannot_be_added_to_a_standard_approval(api, monkeypatch):
+    client, sessions, approval_id = prepare_dispatch(api, monkeypatch)
+    with sessions() as db:
+        dispatch = db.get(PurchaseOrderDispatch, approval_id)
+        dispatch.approved_payload = {**dispatch.approved_payload, "sandbox_test": True}
+        db.commit()
+    monkeypatch.setattr(
+        purchase_order_dispatch, "verify_sandbox_target",
+        lambda *args: pytest.fail("Inconsistent markers must fail before verification"),
+    )
+    assert client.post(f"/api/approvals/{approval_id}/dispatch").status_code == 422
+    with sessions() as db:
+        assert db.get(PurchaseOrderDispatch, approval_id).attempt is None
 
 
 def test_dispatch_disabled_by_default(api, monkeypatch):

@@ -14,6 +14,7 @@ postgres_admin_username = "supplyadmin"
 # Optional sandbox proposal and read-only verification. Create the named
 # Key Vault secret outside Terraform before applying; never put its value here.
 # sandbox_proposals_enabled = true
+# bc_purchasing_secret_name = "bc-purchasing-client-secret"
 # bc_sandbox_verifier = {
 #   tenant_id            = "<business central tenant id>"
 #   environment          = "<sandbox environment name>"

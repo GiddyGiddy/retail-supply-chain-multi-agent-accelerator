@@ -239,6 +239,15 @@ resource "azurerm_container_app" "api" {
     }
   }
 
+  dynamic "secret" {
+    for_each = var.bc_purchasing_secret_name == null ? [] : [var.bc_purchasing_secret_name]
+    content {
+      name                = "bc-purchasing-secret"
+      key_vault_secret_id = "${azurerm_key_vault.main.vault_uri}secrets/${secret.value}"
+      identity            = azurerm_user_assigned_identity.api.id
+    }
+  }
+
   ingress {
     external_enabled = true
     target_port      = 8000
@@ -348,8 +357,19 @@ resource "azurerm_container_app" "api" {
         value = "false"
       }
       env {
+        name  = "BC_STANDARD_DISPATCH_ENABLED"
+        value = "false"
+      }
+      env {
         name  = "SANDBOX_PROPOSALS_ENABLED"
         value = tostring(var.sandbox_proposals_enabled)
+      }
+      dynamic "env" {
+        for_each = var.bc_purchasing_secret_name == null ? [] : [var.bc_purchasing_secret_name]
+        content {
+          name        = "BC_CLIENT_SECRET"
+          secret_name = "bc-purchasing-secret"
+        }
       }
       dynamic "env" {
         for_each = var.bc_sandbox_verifier == null ? {} : {

@@ -17,6 +17,7 @@ entra_api_client_id = "4ea32a70-966a-48bb-bc85-35b908e18a24"
 web_custom_domain = "inventarmind.giddyitsolutions.com"
 
 sandbox_proposals_enabled = true
+bc_purchasing_secret_name = "bc-purchasing-client-secret"
 bc_sandbox_verifier = {
   tenant_id            = "8d132419-f288-4bcb-b3b9-42e1ffc6d824"
   environment          = "InventarMind"

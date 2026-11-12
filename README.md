@@ -89,8 +89,12 @@ The approver-only `POST /api/approvals/{approval_id}/dispatch` endpoint is
 disabled by default and requires authentication, an approver role, both `BC_DISPATCH_ENABLED=true` and
 `BC_WRITES_ENABLED=true`, plus valid Business Central configuration. Keep both
 disabled until sandbox testing and business approval are complete. The current
-workflow uses demo data and is not suitable for real orders. Dispatch
-validates the saved proposal and supports USD or EUR orders below 50,000 in
+workflow uses demo data and is not suitable for real orders. Dispatch of
+standard (non-test) proposals additionally requires
+`BC_STANDARD_DISPATCH_ENABLED=true`; this flag defaults to false. Explicit
+enablement is a behavior change for existing deployments that previously used
+the standard dispatch endpoint. Do not enable it for sandbox-only testing.
+The dispatcher validates the saved proposal and supports USD or EUR orders below 50,000 in
 their respective currency; other currencies or amounts require further review.
 The sourcing result must explicitly supply `cost_currency="EUR"` for EUR costs;
 missing currency retains the existing USD default. The LLM cannot change this
@@ -117,6 +121,9 @@ verification. Both global write flags must also be enabled. Terraform explicitly
 keeps all three dispatch/write flags false; do not enable them until sandbox
 readiness and business approval are complete. The proposal option is off by
 default and does not alter the normal demo workflow.
+Terraform also explicitly keeps standard dispatch disabled. Enabling sandbox
+dispatch requires first deploying a version of the API that enforces the
+standard-dispatch flag; older revisions do not honor it.
 For local Docker Compose, add `SANDBOX_PROPOSALS_ENABLED=true` to the local
 `.env` file and run `docker compose up --build`; remove it or set it to `false`
 to hide the button and disable proposal creation. Local authentication remains
@@ -148,6 +155,11 @@ before the new Container App revision starts. Review the complete Terraform plan
 before applying: Terraform manages the API's environment and can remove
 portal-only settings. The configured BC target alone is not write permission;
 both dispatch and write flags remain explicitly false.
+The optional `bc_purchasing_secret_name` separately references an existing Key
+Vault secret as `BC_CLIENT_SECRET` using the API's managed identity. Create that
+secret outside Terraform before applying; only its name and versionless reference,
+not its value, are configured by Terraform. Providing this credential does not
+enable dispatch or verify purchasing permissions.
 Failures return 503 without disclosing credentials. This endpoint is a point-in-time
 diagnostic, not an authorization for a later dispatch. Each sandbox dispatch
 independently rechecks the target before claiming the handoff, using the same

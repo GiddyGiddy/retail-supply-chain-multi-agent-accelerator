@@ -80,6 +80,17 @@ variable "sandbox_proposals_enabled" {
   default     = false
 }
 
+variable "bc_purchasing_secret_name" {
+  description = "Optional name of an existing Key Vault secret containing the Business Central purchasing client secret."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.bc_purchasing_secret_name == null ? true : can(regex("^[a-zA-Z0-9-]{1,127}$", var.bc_purchasing_secret_name))
+    error_message = "The purchasing secret name must be a valid Key Vault secret name."
+  }
+}
+
 variable "bc_sandbox_verifier" {
   description = "Optional sandbox target and separate verifier identity. The verifier secret must already exist in this deployment's Key Vault."
   type = object({

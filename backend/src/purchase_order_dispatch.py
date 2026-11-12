@@ -91,11 +91,19 @@ def dispatch_held_order(db: Session, approval_id: str, user_subject: str) -> Pur
     approval = db.get(Approval, approval_id)
     if approval is None or approval.status != "approved" or dispatch.status != "held":
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="PO handoff is not dispatchable")
-    if approval.payload.get("sandbox_test") is True and dispatch.approved_payload.get("sandbox_test") is not True:
+    sandbox_test = dispatch.approved_payload.get("sandbox_test") is True
+    if (approval.payload.get("sandbox_test") is True) != sandbox_test:
         raise HTTPException(status_code=422, detail="Sandbox test marker is inconsistent; no order was sent")
+    if not sandbox_test and os.getenv("BC_STANDARD_DISPATCH_ENABLED", "false").strip().lower() not in {
+        "1", "true", "yes",
+    }:
+        raise HTTPException(
+            status_code=503,
+            detail="Standard purchase order dispatch is disabled; no order was sent",
+        )
     payload = _validated_draft(dispatch)
 
-    if dispatch.approved_payload.get("sandbox_test") is True:
+    if sandbox_test:
         if os.getenv("BC_SANDBOX_DISPATCH_ENABLED", "false").strip().lower() not in {"1", "true", "yes"}:
             raise HTTPException(status_code=503, detail="Sandbox test dispatch is disabled; no order was sent")
         try:
