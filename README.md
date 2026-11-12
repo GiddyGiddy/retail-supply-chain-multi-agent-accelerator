@@ -117,6 +117,37 @@ For local Docker Compose, add `SANDBOX_PROPOSALS_ENABLED=true` to the local
 `.env` file and run `docker compose up --build`; remove it or set it to `false`
 to hide the button and disable proposal creation. Local authentication remains
 disabled by default; do not use that mode for an exposed deployment.
+
+The approver-only `POST /api/sandbox/verify-target` endpoint performs a read-only
+target check without enabling writes. It requires authentication and compares
+`BC_TENANT_ID`, `BC_ENVIRONMENT`, and `BC_COMPANY_ID` against the pinned
+InventarMind sandbox target in `backend/src/sandbox_target.py`. It then checks
+the environment's tenant, name, application family, active status, and actual
+`Sandbox` type using the Business Central Admin Center API. The company ID is
+compared to the configured target; this check does not query whether the company
+exists or test purchase-order permissions.
+
+The check uses a **separate** Entra app in the Business Central tenant, provided
+as `BC_SANDBOX_VERIFIER_CLIENT_ID` and `BC_SANDBOX_VERIFIER_CLIENT_SECRET`; use
+Key Vault for the secret. Microsoft requires `AdminCenter.ReadWrite.All` and
+authorization in the Business Central Admin Center for service-to-service
+access. This is a powerful administrative permission even though this endpoint
+only performs a GET; protect the verifier identity accordingly. Do not grant it
+to the purchase integration app. See [Admin Center API authentication](https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/administration/administration-center-api).
+Terraform supports this configuration through `sandbox_proposals_enabled` and
+the optional `bc_sandbox_verifier` object (see `infra/terraform/terraform.tfvars.example`).
+Before applying, create the named verifier client secret in the existing Key Vault
+outside Terraform. Terraform configures a versionless Key Vault reference using
+the API's managed identity; it never reads or stores this verifier secret's
+value in state. The secret must exist and the identity must be able to read it
+before the new Container App revision starts. Review the complete Terraform plan
+before applying: Terraform manages the API's environment and can remove
+portal-only settings. The configured BC target alone is not write permission;
+both dispatch and write flags remain explicitly false.
+Failures return 503 without disclosing credentials. This endpoint is a point-in-time
+diagnostic, **not yet a dispatch authorization**: sandbox handoffs remain blocked.
+Before permitting dispatch, a future change must recheck the same target at
+dispatch time and protect against configuration changes between check and use.
 The dispatcher atomically claims each handoff once. An error or an interrupted
 `in_progress` attempt requires manual reconciliation in Business Central,
 including checking for incomplete headers and lines. A timeout may leave a

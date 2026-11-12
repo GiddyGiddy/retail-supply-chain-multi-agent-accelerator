@@ -15,6 +15,8 @@ from src.event_bus import event_bus
 from src.models import Approval, PurchaseOrderDispatch
 from src.purchase_order_dispatch import dispatch_held_order
 from src.sandbox_proposal import build_sandbox_proposal, sandbox_proposals_enabled
+from src.sandbox_target import SandboxVerificationError, SandboxVerifierCredentials, verify_sandbox_target
+from agents.tools.business_central import BusinessCentralConfig
 from src.schemas import (
     AgentInfo, AgentRunRequest, AgentRunResponse, ApprovalDecision, ApprovalResponse,
     PurchaseOrderDispatchResponse,
@@ -114,6 +116,17 @@ def dispatch_approval(
 @app.get("/api/sandbox/proposals/status")
 def sandbox_proposal_status(_: Annotated[CurrentUser, Depends(get_current_user)]) -> dict[str, bool]:
     return {"enabled": sandbox_proposals_enabled()}
+
+
+@app.post("/api/sandbox/verify-target")
+def verify_target(_: Annotated[CurrentUser, Depends(require_approval_user)]) -> dict[str, str]:
+    if not settings.auth_enabled:
+        raise HTTPException(status_code=503, detail="Sandbox verification requires authentication")
+    try:
+        verify_sandbox_target(BusinessCentralConfig.from_env(), SandboxVerifierCredentials.from_env())
+    except SandboxVerificationError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+    return {"status": "verified", "scope": "environment type and configured target"}
 
 
 @app.post("/api/sandbox/proposals", response_model=AgentRunResponse, status_code=status.HTTP_201_CREATED)
