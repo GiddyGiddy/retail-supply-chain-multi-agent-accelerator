@@ -14,6 +14,7 @@ from src.database import Base, engine, get_db
 from src.event_bus import event_bus
 from src.models import Approval, PurchaseOrderDispatch
 from src.purchase_order_dispatch import dispatch_held_order
+from src.sandbox_proposal import build_sandbox_proposal, sandbox_proposals_enabled
 from src.schemas import (
     AgentInfo, AgentRunRequest, AgentRunResponse, ApprovalDecision, ApprovalResponse,
     PurchaseOrderDispatchResponse,
@@ -108,6 +109,26 @@ def dispatch_approval(
     db: Annotated[Session, Depends(get_db)],
 ) -> PurchaseOrderDispatch:
     return dispatch_held_order(db, approval_id, user.subject)
+
+
+@app.get("/api/sandbox/proposals/status")
+def sandbox_proposal_status(_: Annotated[CurrentUser, Depends(get_current_user)]) -> dict[str, bool]:
+    return {"enabled": sandbox_proposals_enabled()}
+
+
+@app.post("/api/sandbox/proposals", response_model=AgentRunResponse, status_code=status.HTTP_201_CREATED)
+def create_sandbox_proposal(
+    _: Annotated[CurrentUser, Depends(require_approval_user)],
+    db: Annotated[Session, Depends(get_db)],
+) -> AgentRunResponse:
+    if not sandbox_proposals_enabled():
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Sandbox proposals are disabled")
+    proposal = build_sandbox_proposal()
+    approval = Approval(title=proposal["title"], summary=proposal["summary"], status="pending", payload=proposal)
+    db.add(approval)
+    db.commit()
+    db.refresh(approval)
+    return AgentRunResponse(approval=approval)
 
 
 @app.post("/api/agents/runs", response_model=AgentRunResponse, status_code=status.HTTP_201_CREATED)

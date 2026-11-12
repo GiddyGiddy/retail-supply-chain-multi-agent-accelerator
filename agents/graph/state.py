@@ -20,6 +20,8 @@ class SupplyChainState(TypedDict, total=False):
     selected_vendor_id: str
     selected_source_warehouse_id: str
     unit_cost: float
+    cost_currency: str
+    sandbox_test: bool
     total_estimated_cost: float
     sourcing_analysis: dict[str, Any]
     reorder_quantity: int
@@ -87,4 +89,3 @@ class AgentState(BaseModel):
     
     # Agent Execution Logs (For debugging and visibility)
     execution_logs: List[Dict[str, Any]] = Field(default_factory=list)
-
