@@ -30,6 +30,7 @@ export function ApprovalTable({ approvals, onDecision, busyId }: ApprovalTablePr
                   <span className="table-summary">
                     PO handoff: {approval.dispatch.status}
                     {approval.dispatch.status === "held" && " (not sent to Business Central)"}
+                    {approval.payload.sandbox_test === true && " — sandbox test; dispatch blocked"}
                     {approval.dispatch.status === "in_progress" && " (in progress; check before retrying)"}
                     {approval.dispatch.status === "needs_review" && " (manual reconciliation required)"}
                     {approval.dispatch.attempt?.erp_order_number && `: ${approval.dispatch.attempt.erp_order_number}`}

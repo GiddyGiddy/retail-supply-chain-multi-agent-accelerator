@@ -19,6 +19,11 @@ logger = logging.getLogger(__name__)
 
 def _validated_draft(dispatch: PurchaseOrderDispatch) -> dict[str, Any]:
     state = dispatch.approved_payload
+    if state.get("sandbox_test") is True:
+        raise HTTPException(
+            status_code=422,
+            detail="Sandbox test proposals cannot be dispatched; no order was sent",
+        )
     try:
         po = PurchaseOrderDraft.model_validate(state["po_draft"])
         if (
@@ -35,7 +40,11 @@ def _validated_draft(dispatch: PurchaseOrderDispatch) -> dict[str, Any]:
             or not po.lines[0].sku.strip()
         ):
             raise ValueError("Approved draft does not match sourcing facts")
-        if po.currency != "USD" or requires_escalated_review(po.total_amount):
+        if (
+            po.currency not in {"USD", "EUR"}
+            or po.currency != state.get("cost_currency", "USD")
+            or requires_escalated_review(po.total_amount)
+        ):
             raise ValueError("Draft requires additional currency or value review")
     except (KeyError, TypeError, ValidationError, ValueError, OverflowError) as error:
         raise HTTPException(

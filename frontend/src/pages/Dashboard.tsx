@@ -12,6 +12,8 @@ export function Dashboard({ account }: DashboardProps) {
   const { approvals, error, loading, refresh } = useApprovals(account);
   const [apiOnline, setApiOnline] = useState<boolean | null>(null);
   const [notice, setNotice] = useState("");
+  const [sandboxEnabled, setSandboxEnabled] = useState(false);
+  const [sandboxBusy, setSandboxBusy] = useState(false);
   const [command, setCommand] = useState(
     "Prioritize replenishment for the demo inventory before winter disruptions.",
   );
@@ -21,6 +23,17 @@ export function Dashboard({ account }: DashboardProps) {
       .then((response) => setApiOnline(response.ok))
       .catch(() => setApiOnline(false));
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    setSandboxEnabled(false);
+    void apiRequest<{ enabled: boolean }>("/api/sandbox/proposals/status", account)
+      .then((result) => { if (active) setSandboxEnabled(result.enabled); })
+      .catch((reason: unknown) => {
+        if (active) setNotice(reason instanceof Error ? reason.message : "Could not check sandbox proposal availability.");
+      });
+    return () => { active = false; };
+  }, [account]);
 
   async function startAgentRun() {
     setNotice("");
@@ -33,6 +46,20 @@ export function Dashboard({ account }: DashboardProps) {
       await refresh();
     } catch (reason) {
       setNotice(reason instanceof Error ? reason.message : "Agent run failed.");
+    }
+  }
+
+  async function createSandboxProposal() {
+    setSandboxBusy(true);
+    setNotice("");
+    try {
+      await apiRequest("/api/sandbox/proposals", account, { method: "POST" });
+      setNotice("Sandbox test proposal added to the approval queue. It cannot be dispatched.");
+      await refresh();
+    } catch (reason) {
+      setNotice(reason instanceof Error ? reason.message : "Sandbox proposal could not be created.");
+    } finally {
+      setSandboxBusy(false);
     }
   }
 
@@ -63,6 +90,17 @@ export function Dashboard({ account }: DashboardProps) {
           Run supervisor workflow
         </button>
       </section>
+      {sandboxEnabled && (
+        <section className="card">
+          <p className="eyebrow">SANDBOX TEST ONLY</p>
+          <h2>Prepare a test proposal</h2>
+          <p>Vendor V00010, item 1000: 10 units at EUR 5.00 each (EUR 50.00 before tax).</p>
+          <p className="muted">The price is a test assumption, not a vendor quote. This proposal cannot be dispatched to Business Central.</p>
+          <button className="button button-muted" disabled={sandboxBusy} onClick={() => void createSandboxProposal()}>
+            {sandboxBusy ? "Creating..." : "Create sandbox test proposal"}
+          </button>
+        </section>
+      )}
       <section className="metric-grid" aria-label="Supply chain metrics">
         <article className="card metric-card">
           <p className="eyebrow">PENDING REVIEW</p>

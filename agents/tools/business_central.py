@@ -221,6 +221,14 @@ class BusinessCentralClient:
         if on_order_created is not None:
             on_order_created(order_id)
         try:
+            order_currency = self._request(
+                "GET", f"purchaseOrders({order_id})", params={"$select": "currencyCode"},
+            )
+            actual_currency = order_currency.get("currencyCode")
+            if not isinstance(actual_currency, str) or (
+                actual_currency or self.config.local_currency
+            ) != currency:
+                raise BusinessCentralError("Business Central draft currency does not match the approved currency")
             self._request(
                 "POST",
                 f"purchaseOrders({order_id})/purchaseOrderLines",

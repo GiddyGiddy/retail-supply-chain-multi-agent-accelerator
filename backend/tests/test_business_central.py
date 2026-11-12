@@ -35,13 +35,14 @@ def _client(handler) -> BusinessCentralClient:
 
 
 class FakeBC:
-    def __init__(self, vendor=None, existing=None, fail_lines=False, total=25.0) -> None:
+    def __init__(self, vendor=None, existing=None, fail_lines=False, total=25.0, currency="EUR") -> None:
         self.calls: list[tuple[str, str]] = []
         self.bodies: list[dict] = []
         self.vendor = {"number": "V1", "blocked": " "} if vendor is None else vendor
         self.existing = existing or []
         self.fail_lines = fail_lines
         self.total = total
+        self.currency = currency
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
         path = request.url.path
@@ -57,6 +58,8 @@ class FakeBC:
             return httpx.Response(200, json={"value": self.existing})
         if request.method == "POST" and path.endswith("/purchaseOrders"):
             return httpx.Response(201, json={"id": "po-guid", "@odata.etag": 'W/"1"'})
+        if request.method == "GET" and request.url.params.get("$select") == "currencyCode":
+            return httpx.Response(200, json={"currencyCode": self.currency})
         if request.method == "POST" and path.endswith("/purchaseOrderLines"):
             if self.fail_lines and self.bodies[-1].get("lineType") == "Item":
                 return httpx.Response(400, json={"error": {"code": "Bad", "message": "Item does not exist"}})
@@ -80,6 +83,25 @@ def test_creates_draft_po_with_header_comment_and_item_lines() -> None:
     assert bc.bodies[1] == {"lineType": "Comment", "description": PAYLOAD["po_reference"]}
     assert bc.bodies[2]["lineObjectNumber"] == "SKU-1" and bc.bodies[2]["locationCode"] == "DC1"
     assert not any(method == "DELETE" for method, _ in bc.calls)
+
+
+@pytest.mark.parametrize("currency", ["USD", None])
+def test_currency_mismatch_or_missing_currency_stops_before_lines(currency) -> None:
+    bc = FakeBC(currency=currency)
+    seen = []
+    with pytest.raises(BusinessCentralError, match="currency"):
+        _client(bc).create_draft_purchase_order(PAYLOAD, on_order_created=seen.append, reject_existing=True)
+    assert seen == ["po-guid"]
+    assert not any(path.endswith("/purchaseOrderLines") for _, path in bc.calls)
+    assert not any(method == "DELETE" for method, _ in bc.calls)
+
+
+def test_blank_header_currency_uses_configured_local_currency() -> None:
+    bc = FakeBC(currency="")
+    client = BusinessCentralClient(_config(local_currency="EUR"), transport=httpx.MockTransport(bc))
+    result = client.create_draft_purchase_order(PAYLOAD)
+    assert result["total_matches"] is True
+    assert "currencyCode" not in bc.bodies[0]
 
 
 def test_existing_draft_with_same_reference_is_not_duplicated() -> None:

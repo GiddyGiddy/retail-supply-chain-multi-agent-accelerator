@@ -36,7 +36,7 @@ InventarMind is deployed to Azure (resource group `rg-inventarmind`, Sweden Cent
 | Orchestrator | Optional (OpenAI `o3`) | Decomposes the objective, routes tasks, retries twice then escalates to a human |
 | Demand & Inventory | No | Deterministic stockout deficit = max(0, safety - on_hand) |
 | Allocation & Sourcing | Optional | Deterministic transfer/vendor ranking; the LLM can only lower supplier reliability |
-| Procurement & Vendor | Yes | Function calling builds the PO payload; Python verifies it, and dispatch requires `po_approved`, value < $50k and a vendor email |
+| Procurement & Vendor | Optional | Builds a draft proposal and an unsent vendor email; Python verifies optional LLM mapping |
 
 Proposals wait in the approval queue; nothing is written to the ERP without human approval.
 
@@ -64,7 +64,9 @@ The supervisor uses the configured OpenAI reasoning model when `OPENAI_API_KEY` 
 
 ## Business Central (ERP)
 
-`agents/tools/business_central.py` is the ERP adapter used by `procurement_vendor.py`. It creates **Draft** purchase orders through the Business Central API v2.0 (`purchaseOrders` and `purchaseOrderLines`) using Entra client-credentials. It is disabled unless `BC_WRITES_ENABLED=true` and the `BC_*` variables are set; it never releases or posts a PO. Register an Entra app, grant it the Business Central API permission, and add it to Business Central (Microsoft Entra Applications page) with a permission set limited to purchase documents. Store `BC_CLIENT_SECRET` in Key Vault, not in `.env`.
+`agents/tools/business_central.py` is the ERP adapter used by the guarded API dispatcher. It creates **Draft** purchase orders through the Business Central API v2.0 (`purchaseOrders` and `purchaseOrderLines`) using Entra client-credentials; it never releases or posts a PO. The procurement node prepares proposals and email text only. It cannot dispatch an ERP order, send email, or check acknowledgements, even if the workflow state says `po_approved`.
+
+For sandbox preparation, create or select a Business Central sandbox and company, and register an Entra app for service-to-service authentication. Grant the appropriate Business Central application permission and admin consent, then register the application in the sandbox's **Microsoft Entra applications** page with a least-privilege permission set. Configure `BC_TENANT_ID`, `BC_CLIENT_ID`, `BC_COMPANY_ID`, `BC_ENVIRONMENT` (the sandbox environment name) and `BC_LOCAL_CURRENCY`; supply `BC_CLIENT_SECRET` through Key Vault rather than source control. See [Microsoft's service-to-service authentication guidance](https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/administration/automation-apis-using-s2s-authentication). Setting the environment name alone does not enforce that it is a sandbox: verify the actual target before testing. Keep both write flags disabled until the separate test and approval steps.
 
 ## Authentication
 
@@ -88,9 +90,33 @@ disabled by default and requires authentication, an approver role, both `BC_DISP
 `BC_WRITES_ENABLED=true`, plus valid Business Central configuration. Keep both
 disabled until sandbox testing and business approval are complete. The current
 workflow uses demo data and is not suitable for real orders. Dispatch
-validates the saved proposal and supports USD orders below 50,000 only; other
-currencies or amounts require further review. A successful request records a
+validates the saved proposal and supports USD or EUR orders below 50,000 in
+their respective currency; other currencies or amounts require further review.
+The sourcing result must explicitly supply `cost_currency="EUR"` for EUR costs;
+missing currency retains the existing USD default. The LLM cannot change this
+currency, and the dispatcher verifies the draft currency against the saved
+sourcing currency. Configure `BC_LOCAL_CURRENCY` to the actual company's local
+currency, and verify that the vendor and Business Central order use the approved
+currency before testing. The adapter checks the created header's currency before
+adding lines; a mismatch requires reconciliation. A successful request records a
 draft order number and ID; it does not release, post, or email the order.
+The current dashboard workflow has no input for `cost_currency` or real vendor
+quotes, so it cannot yet produce a verified EUR proposal from the sandbox.
+
+For approval-queue testing only, set `SANDBOX_PROPOSALS_ENABLED=true` on the API
+and restart it to show the separate sandbox test button on the dashboard. It
+creates a clearly labeled pending proposal for vendor `V00010`, item `1000`,
+10 units at EUR 5.00 each (EUR 50.00 before tax); this price is a test
+assumption, not a vendor quote. Creating it requires the approver role when
+authentication is enabled. It bypasses the agent workflow and does not access
+Business Central. Approval creates a held handoff, but **sandbox test handoffs
+cannot be dispatched**, even when both write flags are enabled. A future step
+must establish a verified sandbox-target safeguard before draft testing. The
+option is off by default and does not alter the normal demo workflow.
+For local Docker Compose, add `SANDBOX_PROPOSALS_ENABLED=true` to the local
+`.env` file and run `docker compose up --build`; remove it or set it to `false`
+to hide the button and disable proposal creation. Local authentication remains
+disabled by default; do not use that mode for an exposed deployment.
 The dispatcher atomically claims each handoff once. An error or an interrupted
 `in_progress` attempt requires manual reconciliation in Business Central,
 including checking for incomplete headers and lines. A timeout may leave a

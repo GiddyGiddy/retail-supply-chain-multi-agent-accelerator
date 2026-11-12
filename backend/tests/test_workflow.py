@@ -221,29 +221,30 @@ def test_procurement_builds_po_payloads_and_email_without_external_writes() -> N
     assert "erp_po_number" not in result
 
 
-def test_procurement_dispatches_only_when_approved_and_tracks_acknowledgment() -> None:
+def test_procurement_never_dispatches_or_notifies_even_if_state_says_approved(monkeypatch) -> None:
+    from agents.tools import erp_tools, oms_tools
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("Proposal generation must not perform external writes")
+
+    monkeypatch.setattr(erp_tools, "create_purchase_order", forbidden)
+    monkeypatch.setattr(oms_tools, "send_vendor_message", forbidden)
+    monkeypatch.setattr(oms_tools, "check_po_acknowledgment", forbidden)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     state = {
         "sku": "SKU-1", "sourcing_strategy": "VENDOR_PO", "selected_vendor_id": "V1",
         "reorder_quantity": 10, "unit_cost": 2.0, "summary": "x",
         "vendor_contact_email": "a@b.example",
     }
-    tools = {
-        "erp_create": lambda payload: {"po_number": "4500001"},
-        "send_message": lambda **kw: {"message_id": "m-1"},
-        "check_ack": lambda po_reference: {"acknowledged": True},
-    }
-    assert "erp_po_number" not in build_proposal(state, **tools)
-
-    sent = build_proposal({**state, "po_approved": True}, **tools)
-    assert sent["erp_po_number"] == "4500001"
-    assert sent["lifecycle_status"] == "ACKNOWLEDGED"
-    assert sent["requires_human_approval"] is False
-
-    escalated = build_proposal({**state, "po_approved": True, "reorder_quantity": 100_000}, **tools)
-    assert "erp_po_number" not in escalated and escalated["escalated_review"] is True
-
-    unavailable = build_proposal({**state, "po_approved": True})
-    assert unavailable["po_lifecycle_status"] == "APPROVED_INTEGRATION_UNAVAILABLE"
+    for approved in (False, True):
+        result = build_proposal({**state, "po_approved": approved})
+        assert result["po_lifecycle_status"] == "PENDING_APPROVAL"
+        assert result["requires_human_approval"] is True
+        assert result["vendor_email"]["to"] == "a@b.example"
+        assert "erp_po_number" not in result
+        assert "message_id" not in result
+    escalated = build_proposal({**state, "po_approved": True, "reorder_quantity": 100_000})
+    assert escalated["escalated_review"] is True
 
 
 def _po_state(**overrides) -> dict:
@@ -276,6 +277,21 @@ def test_llm_mapping_can_refine_receipt_date_but_not_sourcing_facts(monkeypatch)
 
     broken = build_proposal(_po_state(), mapper=lambda s, b: (_ for _ in ()).throw(ValueError("bad")))
     assert broken["po_mapping_source"] == "deterministic"
+
+
+def test_procurement_uses_sourcing_currency_and_rejects_llm_currency_change(monkeypatch) -> None:
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    state = _po_state(cost_currency="EUR")
+    result = build_proposal(state)
+    assert result["po_draft"]["currency"] == "EUR"
+    tampered = lambda state, baseline: CreateBusinessCentralPOInput(
+        vendor_number="V1", item_number="SKU-1", quantity=10, unit_cost=2.0, currency_code="USD",
+    )
+    result = build_proposal(state, mapper=tampered)
+    assert result["po_mapping_source"] == "deterministic"
+    assert "rejected" in result["po_mapping_warning"]
+    assert result["po_draft"]["currency"] == "EUR"
+    assert build_proposal(_po_state())["po_draft"]["currency"] == "USD"
 
 
 def test_supplier_notes_can_only_lower_reliability_within_bounds() -> None:
