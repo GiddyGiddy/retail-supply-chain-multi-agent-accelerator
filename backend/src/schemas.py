@@ -1,7 +1,7 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
 
 class AgentRunRequest(BaseModel):
@@ -20,6 +20,26 @@ class PurchaseOrderDispatchAttemptResponse(BaseModel):
     erp_order_id: str | None
     erp_order_number: str | None
 
+    @field_serializer("started_at")
+    def serialize_started_at(self, value: datetime) -> str:
+        if value.utcoffset() is None:
+            value = value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc).isoformat()
+
+
+class PurchaseOrderReconciliationRequest(BaseModel):
+    confirmed_no_order: Literal[True]
+    attempt_started_at: datetime
+    evidence: str = Field(min_length=20, max_length=2000)
+
+
+class PurchaseOrderReconciliationResponse(PurchaseOrderDispatchAttemptResponse):
+    id: str
+    started_by: str
+    reconciled_by: str
+    reconciled_at: datetime
+    evidence: str
+
 
 class PurchaseOrderDispatchResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -28,6 +48,7 @@ class PurchaseOrderDispatchResponse(BaseModel):
     status: str
     approved_at: datetime
     attempt: PurchaseOrderDispatchAttemptResponse | None = None
+    reconciliations: list[PurchaseOrderReconciliationResponse] = Field(default_factory=list)
 
 
 class ApprovalResponse(BaseModel):

@@ -1,18 +1,19 @@
 import logging
 import math
 import os
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import HTTPException, status
 from pydantic import ValidationError
-from sqlalchemy import update
+from sqlalchemy import exists, select, update
 from sqlalchemy.orm import Session
 
 from agents.graph.nodes.procurement_vendor import PurchaseOrderDraft
 from agents.guardrails.deterministic import requires_escalated_review
 from agents.tools.business_central import BusinessCentralClient, BusinessCentralConfig
 from src.config.settings import settings
-from src.models import Approval, PurchaseOrderDispatch, PurchaseOrderDispatchAttempt
+from src.models import Approval, PurchaseOrderDispatch, PurchaseOrderDispatchAttempt, PurchaseOrderDispatchReconciliation
 from src.sandbox_target import (
     SandboxVerificationError,
     SandboxVerifierCredentials,
@@ -20,6 +21,69 @@ from src.sandbox_target import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def reconcile_sandbox_order(
+    db: Session, approval_id: str, user_subject: str, evidence: str, attempt_started_at: datetime,
+) -> PurchaseOrderDispatch:
+    if not settings.auth_enabled:
+        raise HTTPException(status_code=503, detail="Purchase order reconciliation requires authentication")
+    evidence = evidence.strip()
+    if len(evidence) < 20:
+        raise HTTPException(status_code=422, detail="Describe the Business Central checks performed")
+    dispatch = db.get(PurchaseOrderDispatch, approval_id)
+    if dispatch is None:
+        raise HTTPException(status_code=404, detail="PO handoff not found")
+    approval = db.get(Approval, approval_id)
+    attempt = db.get(PurchaseOrderDispatchAttempt, approval_id)
+    if attempt_started_at.utcoffset() is None:
+        raise HTTPException(status_code=422, detail="Attempt timestamp must include a timezone")
+    expected_time = attempt_started_at.astimezone(timezone.utc).replace(tzinfo=None)
+    actual_time = None
+    if attempt is not None:
+        actual_time = attempt.started_at
+        if actual_time.utcoffset() is not None:
+            actual_time = actual_time.astimezone(timezone.utc).replace(tzinfo=None)
+    if (
+        approval is None or approval.status != "approved"
+        or approval.payload.get("sandbox_test") is not True
+        or dispatch.approved_payload.get("sandbox_test") is not True
+        or dispatch.status != "needs_review"
+        or attempt is None or attempt.outcome != "needs_review"
+        or actual_time != expected_time
+        or attempt.erp_order_id is not None or attempt.erp_order_number is not None
+    ):
+        raise HTTPException(status_code=409, detail="Handoff is not eligible for sandbox no-order reconciliation")
+    _validated_draft(dispatch)
+    claimed = db.execute(
+        update(PurchaseOrderDispatch)
+        .where(
+            PurchaseOrderDispatch.approval_id == approval_id,
+            PurchaseOrderDispatch.status == "needs_review",
+            exists(select(PurchaseOrderDispatchAttempt.approval_id).where(
+                PurchaseOrderDispatchAttempt.approval_id == approval_id,
+                PurchaseOrderDispatchAttempt.started_at == attempt.started_at,
+                PurchaseOrderDispatchAttempt.started_by == attempt.started_by,
+                PurchaseOrderDispatchAttempt.outcome == "needs_review",
+                PurchaseOrderDispatchAttempt.erp_order_id.is_(None),
+                PurchaseOrderDispatchAttempt.erp_order_number.is_(None),
+            )),
+        )
+        .values(status="held")
+        .execution_options(synchronize_session=False)
+    )
+    if claimed.rowcount != 1:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Handoff was already reconciled")
+    db.add(PurchaseOrderDispatchReconciliation(
+        approval_id=approval_id, started_by=attempt.started_by, started_at=attempt.started_at,
+        outcome=attempt.outcome, erp_order_id=attempt.erp_order_id,
+        erp_order_number=attempt.erp_order_number, reconciled_by=user_subject, evidence=evidence,
+    ))
+    db.delete(attempt)
+    db.commit()
+    db.refresh(dispatch)
+    return dispatch
 
 
 def _validated_draft(dispatch: PurchaseOrderDispatch) -> dict[str, Any]:

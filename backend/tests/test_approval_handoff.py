@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from types import SimpleNamespace
 
 import httpx
@@ -10,7 +11,7 @@ from src import purchase_order_dispatch
 from src.app import app, event_bus
 from src.auth import CurrentUser, require_approval_user
 from src.database import Base, get_db
-from src.models import Approval, PurchaseOrderDispatch
+from src.models import Approval, PurchaseOrderDispatch, PurchaseOrderDispatchAttempt, PurchaseOrderDispatchReconciliation
 from src.sandbox_target import EXPECTED_TENANT_ID, verify_sandbox_target
 
 
@@ -191,6 +192,163 @@ def prepare_sandbox_dispatch(api, monkeypatch):
     )
     monkeypatch.setattr(purchase_order_dispatch.BusinessCentralConfig, "from_env", lambda: config)
     return client, sessions, approval_id, config
+
+
+def prepare_uncertain_sandbox(api, monkeypatch):
+    client, sessions, approval_id, _ = prepare_sandbox_dispatch(api, monkeypatch)
+    with sessions() as db:
+        db.get(PurchaseOrderDispatch, approval_id).status = "needs_review"
+        db.add(PurchaseOrderDispatchAttempt(
+            approval_id=approval_id, started_by="original-approver", outcome="needs_review",
+            started_at=datetime(2026, 11, 12, 20, 0, 22, tzinfo=timezone.utc),
+        ))
+        db.commit()
+    return client, sessions, approval_id
+
+
+RECONCILIATION = {
+    "confirmed_no_order": True,
+    "attempt_started_at": "2026-11-12T20:00:22Z",
+    "evidence": "Checked TestCompany purchase orders and incomplete headers around 21:00; none found.",
+}
+
+
+def test_sandbox_reconciliation_archives_attempt_and_requires_separate_dispatch(api, monkeypatch):
+    client, sessions, approval_id = prepare_uncertain_sandbox(api, monkeypatch)
+    monkeypatch.setattr(
+        purchase_order_dispatch, "BusinessCentralClient",
+        lambda *args: pytest.fail("Reconciliation must never contact Business Central"),
+    )
+    started_at = client.get("/api/approvals").json()[0]["dispatch"]["attempt"]["started_at"]
+    response = client.post(
+        f"/api/approvals/{approval_id}/reconcile-no-order",
+        json={**RECONCILIATION, "attempt_started_at": started_at},
+    )
+    assert response.status_code == 200
+    result = response.json()
+    assert result["status"] == "held"
+    assert result["attempt"] is None
+    record = result["reconciliations"][0]
+    assert record["started_by"] == "original-approver"
+    assert record["outcome"] == "needs_review"
+    assert record["reconciled_by"] == "approver-123"
+    assert record["evidence"] == RECONCILIATION["evidence"]
+    assert client.post(f"/api/approvals/{approval_id}/reconcile-no-order", json=RECONCILIATION).status_code == 409
+    assert client.get("/api/approvals").json()[0]["dispatch"]["reconciliations"][0]["id"] == record["id"]
+    with sessions() as db:
+        assert db.get(PurchaseOrderDispatchAttempt, approval_id) is None
+        assert len(db.scalars(select(PurchaseOrderDispatchReconciliation)).all()) == 1
+
+
+@pytest.mark.parametrize("change", ["order_id", "order_number", "attempt_outcome", "status", "standard"])
+def test_sandbox_reconciliation_rejects_unsafe_handoffs(api, monkeypatch, change):
+    client, sessions, approval_id = prepare_uncertain_sandbox(api, monkeypatch)
+    with sessions() as db:
+        dispatch = db.get(PurchaseOrderDispatch, approval_id)
+        attempt = db.get(PurchaseOrderDispatchAttempt, approval_id)
+        if change == "order_id":
+            attempt.erp_order_id = "known-id"
+        elif change == "order_number":
+            attempt.erp_order_number = "PO-123"
+        elif change == "attempt_outcome":
+            attempt.outcome = "in_progress"
+        elif change == "status":
+            dispatch.status = "in_progress"
+        else:
+            approval = db.get(Approval, approval_id)
+            approval.payload = {**approval.payload, "sandbox_test": False}
+        db.commit()
+    assert client.post(f"/api/approvals/{approval_id}/reconcile-no-order", json=RECONCILIATION).status_code == 409
+    with sessions() as db:
+        assert db.get(PurchaseOrderDispatchAttempt, approval_id) is not None
+        assert db.scalars(select(PurchaseOrderDispatchReconciliation)).all() == []
+
+
+@pytest.mark.parametrize("body", [
+    {**RECONCILIATION, "confirmed_no_order": False},
+    {"attempt_started_at": RECONCILIATION["attempt_started_at"], "evidence": RECONCILIATION["evidence"]},
+    {**RECONCILIATION, "evidence": "short"},
+    {**RECONCILIATION, "evidence": " " * 25},
+    {**RECONCILIATION, "attempt_started_at": "2026-11-12T20:00:22"},
+])
+def test_sandbox_reconciliation_requires_explicit_confirmation_and_evidence(api, monkeypatch, body):
+    client, sessions, approval_id = prepare_uncertain_sandbox(api, monkeypatch)
+    assert client.post(f"/api/approvals/{approval_id}/reconcile-no-order", json=body).status_code == 422
+    with sessions() as db:
+        assert db.get(PurchaseOrderDispatch, approval_id).status == "needs_review"
+        assert db.get(PurchaseOrderDispatchAttempt, approval_id) is not None
+
+
+def test_sandbox_reconciliation_rejects_stale_attempt(api, monkeypatch):
+    client, sessions, approval_id = prepare_uncertain_sandbox(api, monkeypatch)
+    body = {**RECONCILIATION, "attempt_started_at": "2026-11-12T19:00:22Z"}
+    assert client.post(f"/api/approvals/{approval_id}/reconcile-no-order", json=body).status_code == 409
+    with sessions() as db:
+        assert db.get(PurchaseOrderDispatch, approval_id).status == "needs_review"
+        assert db.get(PurchaseOrderDispatchAttempt, approval_id) is not None
+
+
+def test_sandbox_reconciliation_requires_authentication_and_approver(api, monkeypatch):
+    from src.auth import get_current_user
+
+    client, sessions, approval_id = prepare_uncertain_sandbox(api, monkeypatch)
+    monkeypatch.setattr(purchase_order_dispatch, "settings", SimpleNamespace(auth_enabled=False))
+    assert client.post(f"/api/approvals/{approval_id}/reconcile-no-order", json=RECONCILIATION).status_code == 503
+    monkeypatch.setattr(purchase_order_dispatch, "settings", SimpleNamespace(auth_enabled=True))
+    monkeypatch.setattr("src.auth.settings", SimpleNamespace(auth_enabled=True))
+    app.dependency_overrides.pop(require_approval_user)
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser("not-an-approver")
+    assert client.post(f"/api/approvals/{approval_id}/reconcile-no-order", json=RECONCILIATION).status_code == 403
+    with sessions() as db:
+        assert db.get(PurchaseOrderDispatch, approval_id).status == "needs_review"
+
+
+def test_sandbox_reconciliation_rolls_back_if_audit_insert_fails(api, monkeypatch):
+    client, sessions, approval_id = prepare_uncertain_sandbox(api, monkeypatch)
+
+    def fail_insert(mapper, connection, target):
+        raise RuntimeError("audit insert failed")
+
+    event.listen(PurchaseOrderDispatchReconciliation, "before_insert", fail_insert)
+    try:
+        with pytest.raises(RuntimeError, match="audit insert failed"):
+            client.post(f"/api/approvals/{approval_id}/reconcile-no-order", json=RECONCILIATION)
+    finally:
+        event.remove(PurchaseOrderDispatchReconciliation, "before_insert", fail_insert)
+    with sessions() as db:
+        assert db.get(PurchaseOrderDispatch, approval_id).status == "needs_review"
+        assert db.get(PurchaseOrderDispatchAttempt, approval_id) is not None
+        assert db.scalars(select(PurchaseOrderDispatchReconciliation)).all() == []
+
+
+def test_reconciled_handoff_can_be_dispatched_only_by_separate_request(api, monkeypatch):
+    client, sessions, approval_id = prepare_uncertain_sandbox(api, monkeypatch)
+    calls = []
+
+    class FakeClient:
+        def __init__(self, config):
+            calls.append("client")
+
+        def create_draft_purchase_order(self, payload, *, on_order_created, reject_existing):
+            calls.append("send")
+            assert reject_existing is True
+            on_order_created("new-order-id")
+            return {"erp_status": "Draft", "erp_po_id": "new-order-id", "po_number": "PO-123",
+                    "total_matches": True, "duplicate": False}
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(purchase_order_dispatch, "verify_sandbox_target", lambda *args: calls.append("verified"))
+    monkeypatch.setattr(purchase_order_dispatch, "BusinessCentralClient", FakeClient)
+    assert client.post(f"/api/approvals/{approval_id}/reconcile-no-order", json=RECONCILIATION).status_code == 200
+    assert calls == []
+    assert client.post(f"/api/approvals/{approval_id}/dispatch").status_code == 200
+    assert calls == ["verified", "client", "send"]
+    with sessions() as db:
+        assert db.get(PurchaseOrderDispatch, approval_id).status == "created"
+        assert db.get(PurchaseOrderDispatchAttempt, approval_id).erp_order_id == "new-order-id"
+        assert len(db.scalars(select(PurchaseOrderDispatchReconciliation)).all()) == 1
 
 
 def test_sandbox_verification_failure_leaves_handoff_held(api, monkeypatch):
