@@ -56,14 +56,15 @@ def transport_for(body, calls):
     return httpx.MockTransport(handle)
 
 
-def test_verifies_pinned_sandbox_without_enabling_writes():
+@pytest.mark.parametrize("wrapped", [True, False])
+def test_verifies_pinned_sandbox_without_enabling_writes(wrapped):
     assert EXPECTED_TENANT_ID == "8d132419-f288-4bcb-b3b9-42e1ffc6d824"
     assert EXPECTED_ENVIRONMENT == "InventarMind"
     assert EXPECTED_COMPANY_ID == "6ecc6e3d-f6bb-f111-85be-7c1e52401c43"
     calls = []
     verify_sandbox_target(
         target(), SandboxVerifierCredentials(VERIFIER_CLIENT, "secret"),
-        transport=transport_for(admin_response(), calls),
+        transport=transport_for(admin_response() if wrapped else admin_response()["value"][0], calls),
     )
     assert [method for method, _ in calls] == ["POST", "GET"]
 
@@ -102,6 +103,9 @@ def test_rejects_missing_invalid_or_shared_verifier(credentials):
     admin_response(name="Other"),
     admin_response(aadTenantId="33333333-3333-4333-8333-333333333333"),
     admin_response(applicationFamily="Other"),
+    admin_response(type="Production")["value"][0],
+    admin_response(aadTenantId="33333333-3333-4333-8333-333333333333")["value"][0],
+    {"value": [], **admin_response()["value"][0]},
     {"value": []},
     {"value": [admin_response()["value"][0], admin_response()["value"][0]]},
     {"value": "invalid"},

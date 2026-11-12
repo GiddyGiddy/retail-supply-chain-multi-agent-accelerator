@@ -83,10 +83,15 @@ def verify_sandbox_target(
     except (httpx.HTTPError, ValueError) as error:
         raise SandboxVerificationError("Could not verify the environment with Business Central Admin Center") from error
 
-    environments = body.get("value") if isinstance(body, dict) else None
-    if not isinstance(environments, list) or len(environments) != 1 or not isinstance(environments[0], dict):
+    if not isinstance(body, dict):
         raise SandboxVerificationError("Business Central Admin Center returned an unexpected environment response")
-    environment = environments[0]
+    if "value" in body:
+        environments = body["value"]
+        if not isinstance(environments, list) or len(environments) != 1 or not isinstance(environments[0], dict):
+            raise SandboxVerificationError("Business Central Admin Center returned an unexpected environment response")
+        environment = environments[0]
+    else:
+        environment = body
     if (
         environment.get("name") != EXPECTED_ENVIRONMENT
         or environment.get("applicationFamily") != "BusinessCentral"
