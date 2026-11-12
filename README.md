@@ -79,17 +79,9 @@ Dispatch is a separate, authenticated approver action. It requires valid
 Business Central configuration, `BC_WRITES_ENABLED=true` and
 `BC_DISPATCH_ENABLED=true`. Standard proposals also require
 `BC_STANDARD_DISPATCH_ENABLED=true`; all three flags default to false.
-The workflow uses demo data and is not suitable for real orders. The
-dispatcher validates the approved snapshot, currency, and value; supported
-drafts are below 50,000 in USD or EUR. Set `BC_LOCAL_CURRENCY` to the
-company's local currency. Missing `cost_currency` defaults to USD; the
-dashboard cannot yet supply a verified EUR vendor quote.
+The workflow uses demo data and is not suitable for real orders. 
 
-Set `SANDBOX_PROPOSALS_ENABLED=true` to offer a fixed test proposal: vendor
-`V00010`, item `1000`, 10 units at EUR 5.00 each (EUR 50.00 before tax).
-The price is an assumption, not a quote. Sandbox dispatch additionally requires
-`BC_SANDBOX_DISPATCH_ENABLED=true`, exact test facts, and fresh target
-verification. This deployment enables sandbox testing and keeps standard
+Set `SANDBOX_PROPOSALS_ENABLED=true` to offer a fixed test proposal. This deployment enables sandbox testing and keeps standard
 dispatch disabled. Enabling flags permits eligible approvers to dispatch;
 it does not send an order. Review the full Terraform plan and obtain business
 approval before changing these settings.
