@@ -15,7 +15,7 @@ InventarMind is deployed to Azure (resource group `rg-inventarmind`, Sweden Cent
 | Events | Event Hubs Kafka endpoint, Entra-only (SASL OAUTHBEARER via managed identity) |
 | Secrets | Key Vault (`database-url`, `openai-api-key`), read by managed identity |
 | CI/CD | GitHub Actions with OIDC builds images, pushes to ACR, updates the Container Apps |
-| ERP | Business Central Draft POs; writes are **off** (`BC_WRITES_ENABLED=false`) |
+| ERP | Business Central sandbox draft PO testing enabled; standard dispatch disabled |
 
 ## Solution Architecture
 
@@ -68,152 +68,84 @@ The supervisor uses the configured OpenAI reasoning model when `OPENAI_API_KEY` 
 
 For sandbox preparation, create or select a Business Central sandbox and company, and register an Entra app for service-to-service authentication. Grant the appropriate Business Central application permission and admin consent, then register the application in the sandbox's **Microsoft Entra applications** page with a least-privilege permission set. Configure `BC_TENANT_ID`, `BC_CLIENT_ID`, `BC_COMPANY_ID`, `BC_ENVIRONMENT` (the sandbox environment name) and `BC_LOCAL_CURRENCY`; supply `BC_CLIENT_SECRET` through Key Vault rather than source control. See [Microsoft's service-to-service authentication guidance](https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/administration/automation-apis-using-s2s-authentication). Setting the environment name alone does not enforce that it is a sandbox: verify the actual target before testing. Keep both write flags disabled until the separate test and approval steps.
 
+### Sandbox dispatch and recovery
+
+Approval creates a durable **held** handoff, not a Business Central order.
+The API database identity must be able to create the handoff, attempt,
+reconciliation, and recovery tables at startup. Existing approved proposals
+are not automatically backfilled.
+
+Dispatch is a separate, authenticated approver action. It requires valid
+Business Central configuration, `BC_WRITES_ENABLED=true` and
+`BC_DISPATCH_ENABLED=true`. Standard proposals also require
+`BC_STANDARD_DISPATCH_ENABLED=true`; all three flags default to false.
+The workflow uses demo data and is not suitable for real orders. The
+dispatcher validates the approved snapshot, currency, and value; supported
+drafts are below 50,000 in USD or EUR. Set `BC_LOCAL_CURRENCY` to the
+company's local currency. Missing `cost_currency` defaults to USD; the
+dashboard cannot yet supply a verified EUR vendor quote.
+
+Set `SANDBOX_PROPOSALS_ENABLED=true` to offer a fixed test proposal: vendor
+`V00010`, item `1000`, 10 units at EUR 5.00 each (EUR 50.00 before tax).
+The price is an assumption, not a quote. Sandbox dispatch additionally requires
+`BC_SANDBOX_DISPATCH_ENABLED=true`, exact test facts, and fresh target
+verification. This deployment enables sandbox testing and keeps standard
+dispatch disabled. Enabling flags permits eligible approvers to dispatch;
+it does not send an order. Review the full Terraform plan and obtain business
+approval before changing these settings.
+
+`POST /api/sandbox/verify-target` checks the pinned configuration and confirms
+the environment is an active sandbox via the Business Central Admin Center
+API. It does not check company existence or purchasing permissions; dispatch
+and recovery verify the target again. The verifier uses a **separate** Entra
+application with `BC_SANDBOX_VERIFIER_CLIENT_ID` and
+`BC_SANDBOX_VERIFIER_CLIENT_SECRET`. It requires the powerful
+`AdminCenter.ReadWrite.All` permission and Business Central Admin Center
+authorization; protect this identity and do not grant that permission to the
+purchasing app. See [Admin Center API authentication](https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/administration/administration-center-api).
+Create the verifier and purchasing secrets in Key Vault before applying
+Terraform; `bc_sandbox_verifier` and `bc_purchasing_secret_name` configure
+managed-identity references without storing those secret values in Terraform
+state. See [terraform.tfvars.example](./infra/terraform/terraform.tfvars.example).
+
+The dispatcher claims each attempt atomically. An uncertain or interrupted
+attempt requires manual investigation in Business Central, including incomplete
+headers and lines. **Do not retry or create a replacement until the outcome
+is established.** For an eligible sandbox attempt with no known ERP ID, an
+approver can record a no-order reconciliation after checking the company;
+evidence is visible to queue readers. For an eligible attempt with a known ID,
+an approver can complete an existing comment-only sandbox draft. Recovery
+verifies the draft and reads it back, never creates a new header or releases,
+posts, or deletes the order. The operator must coordinate exclusive access:
+the API cannot lock Business Central against other editors. Failed, interrupted,
+or ambiguous recovery stays locked and must not be retried automatically.
+The queue shows the draft number or a reconciliation warning; a browser-session
+marker also prevents a repeat dispatch after an attempted request.
+
 ## Authentication
 
-When authentication is enabled, approval and rejection decisions require the
-`PurchaseOrder.Approver` application role in the API access token. Define this
-role on the API app registration, assign it to the appropriate users or groups
-in the API enterprise application, and have those users acquire new tokens
-before deploying this change. Without the role, decision requests return 403;
-reading the queue remains available to authenticated users. Local development
-with authentication disabled does not enforce the role. Approval does not yet
-automatically dispatch a Business Central purchase order. Vendor approvals create a durable,
-held handoff containing the approved proposal, approver, timestamp and a unique
-reference in the same database transaction as the decision. A held handoff does
-not mean a draft exists in Business Central.
-The API creates `purchase_order_dispatches`, `purchase_order_dispatch_attempts`,
-`purchase_order_dispatch_reconciliations`, and `purchase_order_draft_recoveries` at startup; its
-database identity must have permission to create tables. Existing approved
-proposals are not automatically backfilled.
+The React dashboard signs users in with Microsoft Entra ID and requests an API
+access token using the `access_as_user` scope. FastAPI validates the token's
+signature, issuer, audience, and expiry. Authenticated users can read the
+approval queue; approval, rejection, sandbox testing, dispatch, and recovery
+require the `PurchaseOrder.Approver` application role. Users without that role
+receive HTTP 403 for approver actions.
 
-The approver-only `POST /api/approvals/{approval_id}/dispatch` endpoint is
-disabled by default and requires authentication, an approver role, both `BC_DISPATCH_ENABLED=true` and
-`BC_WRITES_ENABLED=true`, plus valid Business Central configuration. Both flags
-default to false in the application; enable them only for the approved sandbox
-test. The current
-workflow uses demo data and is not suitable for real orders. Dispatch of
-standard (non-test) proposals additionally requires
-`BC_STANDARD_DISPATCH_ENABLED=true`; this flag defaults to false. Explicit
-enablement is a behavior change for existing deployments that previously used
-the standard dispatch endpoint. Do not enable it for sandbox-only testing.
-The dispatcher validates the saved proposal and supports USD or EUR orders below 50,000 in
-their respective currency; other currencies or amounts require further review.
-The sourcing result must explicitly supply `cost_currency="EUR"` for EUR costs;
-missing currency retains the existing USD default. The LLM cannot change this
-currency, and the dispatcher verifies the draft currency against the saved
-sourcing currency. Configure `BC_LOCAL_CURRENCY` to the actual company's local
-currency, and verify that the vendor and Business Central order use the approved
-currency before testing. The adapter checks the created header's currency before
-adding lines; a mismatch requires reconciliation. A successful request records a
-draft order number and ID; it does not release, post, or email the order.
-The current dashboard workflow has no input for `cost_currency` or real vendor
-quotes, so it cannot yet produce a verified EUR proposal from the sandbox.
+To configure an authenticated deployment:
 
-For approval-queue testing only, set `SANDBOX_PROPOSALS_ENABLED=true` on the API
-and restart it to show the separate sandbox test button on the dashboard. It
-creates a clearly labeled pending proposal for vendor `V00010`, item `1000`,
-10 units at EUR 5.00 each (EUR 50.00 before tax); this price is a test
-assumption, not a vendor quote. Creating it requires the approver role when
-authentication is enabled. It bypasses the agent workflow and does not access
-Business Central. Approval creates a held handoff, but **sandbox test handoffs
-remain unsent** until a separate dispatch request succeeds. Sandbox dispatch
-additionally requires `BC_SANDBOX_DISPATCH_ENABLED=true` (default false), an
-exact match to the agreed test facts, and a fresh successful sandbox-target
-verification. Both global write flags must also be enabled. This deployment's
-Terraform configuration enables these three flags for sandbox testing; review
-the plan and obtain business approval before applying. Enabling them permits
-any qualifying fixed sandbox test handoff to be dispatched by an approver; it
-does not send an order by itself. The proposal option is off by default and
-does not alter the normal demo workflow.
-Terraform also explicitly keeps standard dispatch disabled. Enabling sandbox
-dispatch requires first deploying a version of the API that enforces the
-standard-dispatch flag; older revisions do not honor it.
-For local Docker Compose, add `SANDBOX_PROPOSALS_ENABLED=true` to the local
-`.env` file and run `docker compose up --build`; remove it or set it to `false`
-to hide the button and disable proposal creation. Local authentication remains
-disabled by default; do not use that mode for an exposed deployment.
+1. Register an API application, expose the `access_as_user` scope, and define
+   the `PurchaseOrder.Approver` app role. Assign the role to approvers in the
+   API enterprise application; users may need to sign in again to get a new token.
+2. Register a single-page application with the frontend origin as a redirect
+   URI and grant it access to the API scope.
+3. Configure the API with `AUTH_ENABLED=true`, `ENTRA_TENANT_ID`, and
+   `ENTRA_API_CLIENT_ID`. Configure the frontend with `VITE_AUTH_ENABLED=true`,
+   `VITE_ENTRA_TENANT_ID`, `VITE_ENTRA_CLIENT_ID`, and `VITE_ENTRA_API_SCOPE`.
 
-The approver-only `POST /api/sandbox/verify-target` endpoint performs a read-only
-target check without enabling writes. It requires authentication and compares
-`BC_TENANT_ID`, `BC_ENVIRONMENT`, and `BC_COMPANY_ID` against the pinned
-InventarMind sandbox target in `backend/src/sandbox_target.py`. It then checks
-the environment's tenant, name, application family, active status, and actual
-`Sandbox` type using the Business Central Admin Center API. The company ID is
-compared to the configured target; this check does not query whether the company
-exists or test purchase-order permissions.
-
-The check uses a **separate** Entra app in the Business Central tenant, provided
-as `BC_SANDBOX_VERIFIER_CLIENT_ID` and `BC_SANDBOX_VERIFIER_CLIENT_SECRET`; use
-Key Vault for the secret. Microsoft requires `AdminCenter.ReadWrite.All` and
-authorization in the Business Central Admin Center for service-to-service
-access. This is a powerful administrative permission even though this endpoint
-only performs a GET; protect the verifier identity accordingly. Do not grant it
-to the purchase integration app. See [Admin Center API authentication](https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/administration/administration-center-api).
-Terraform supports this configuration through `sandbox_proposals_enabled` and
-the optional `bc_sandbox_verifier` object (see `infra/terraform/terraform.tfvars.example`).
-Before applying, create the named verifier client secret in the existing Key Vault
-outside Terraform. Terraform configures a versionless Key Vault reference using
-the API's managed identity; it never reads or stores this verifier secret's
-value in state. The secret must exist and the identity must be able to read it
-before the new Container App revision starts. Review the complete Terraform plan
-before applying: Terraform manages the API's environment and can remove
-portal-only settings. The configured BC target alone is not proof of purchase
-order permissions.
-The optional `bc_purchasing_secret_name` separately references an existing Key
-Vault secret as `BC_CLIENT_SECRET` using the API's managed identity. Create that
-secret outside Terraform before applying; only its name and versionless reference,
-not its value, are configured by Terraform. Providing this credential does not
-enable dispatch or verify purchasing permissions.
-Failures return 503 without disclosing credentials. This endpoint is a point-in-time
-diagnostic, not an authorization for a later dispatch. Each sandbox dispatch
-independently rechecks the target before claiming the handoff, using the same
-configuration for verification and the Business Central client. A failed
-preflight leaves the handoff held without creating an attempt or sending an order.
-The dispatcher atomically claims a held handoff for each dispatch attempt. An error or an interrupted
-`in_progress` attempt requires manual reconciliation in Business Central,
-including checking for incomplete headers and lines. A timeout may leave a
-header without a reference or known ID. Do not retry or create a replacement
-until an operator has verified the outcome; there is no automatic retry.
-For an approved fixed sandbox test in `needs_review` with an uncertain attempt and
-no recorded ERP ID or number, an authenticated approver can use **Reconcile no
-order found** after independently checking the correct Business Central company,
-including incomplete headers and lines. The approver must confirm no order exists
-and describe the evidence. The API atomically archives the attempt and operator's
-attestation, then returns the handoff to `held`; it does not contact Business
-Central or send an order. The request identifies the specific attempt by its
-start time, so a stale reconciliation cannot clear a later attempt. Evidence is visible to users who can read the approval
-queue, so do not include sensitive information. A known ERP ID, an in-progress
-attempt, or a standard proposal is not eligible. The operator's attestation is
-not independent proof of absence. A later dispatch is a separate explicit action
-and repeats all dispatch and sandbox checks. If a reconciliation response is
-lost, refresh and check the audit record; the browser-session safety marker may
-still block sending in that session. Never clear it without reviewing the result.
-Email and vendor acknowledgements remain separate, unimplemented steps.
-For a fixed sandbox test with a known ERP order ID in `needs_review`, an
-authenticated approver can separately choose **Complete existing sandbox draft**.
-It requires the existing write and sandbox dispatch flags and repeats target
-verification. It atomically records one recovery attempt, then reads the specific
-draft and requires its matching vendor, currency, reference comment, zero total,
-and no other lines before adding the approved item. It reads back the order and
-lines to verify the draft, item, quantity, unit cost, discount, location and
-total; it never creates another header, releases, posts, or deletes the order.
-The original failed attempt remains in the audit trail. A failed, interrupted,
-or ambiguous recovery stays locked and cannot be automatically retried; inspect
-Business Central manually. The API cannot lock Business Central against other
-users or integrations, so the approver must coordinate exclusive access to the
-draft and lines before and throughout recovery. The UI confirmation requires
-that attestation; the recovery record identifies the approver and time. Do not
-recover if concurrent edits cannot be excluded.
-The approval queue offers a separate confirmation and dispatch button only for
-approved, held sandbox test handoffs. It shows the resulting draft number or a
-reconciliation warning. A browser-session safety marker prevents another click
-after an attempted request, even if a refresh still shows `held`; investigate
-the outcome before using another session or otherwise retrying.
-To run the dashboard's isolated browser tests, run `npm ci`,
-`npx playwright install chromium`, and `npm test` from `frontend`. They use
-mock API responses and do not send orders to Business Central.
-
-For deployments, set `AUTH_ENABLED=true`, `ENTRA_TENANT_ID`, and `ENTRA_API_CLIENT_ID` in the API environment. Configure `VITE_AUTH_ENABLED=true`, `VITE_ENTRA_TENANT_ID`, `VITE_ENTRA_CLIENT_ID`, and `VITE_ENTRA_API_SCOPE` for the frontend. The API validates Entra-issued RS256 access tokens, including issuer and audience. Do not use the local unauthenticated profile in a reachable environment.
+The local development profile disables authentication and does not enforce the
+approver role; never expose that profile publicly. Business Central uses
+separate service-to-service identities and Key Vault secrets, described in
+[Business Central (ERP)](#business-central-erp).
 
 ## Repository map
 
