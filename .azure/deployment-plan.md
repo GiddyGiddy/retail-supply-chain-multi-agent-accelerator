@@ -4,55 +4,40 @@ Status: Validated
 
 ## Scope
 
-Update the existing InventarMind API Container App configuration using the
-repository's Terraform. Do not deploy application code or enable Business
-Central writes.
+Prepare a Terraform-only update to the existing InventarMind API Container App
+in subscription `68e4a31c-83b0-4db6-afd3-c0e780b8ac25`, resource group
+`rg-inventarmind`, Sweden Central. Reference the existing Key Vault secret
+`bc-purchasing-client-secret` using the API's existing user-assigned managed
+identity and expose it as `BC_CLIENT_SECRET`. Do not retrieve the secret value.
 
-## Context and changes
+Keep `BC_WRITES_ENABLED`, `BC_DISPATCH_ENABLED`, and
+`BC_SANDBOX_DISPATCH_ENABLED` false. Preserve the running image and existing
+Container App settings. This plan authorizes preparation and validation only,
+not applying Terraform, deploying, or sending a Business Central order.
 
-- Subscription: Azure subscription 1 (`68e4a31c-83b0-4db6-afd3-c0e780b8ac25`).
-- Resource group: `rg-inventarmind`; API: `inventarmind-api`.
-- Enable sandbox proposals, configure the sandbox target and separate verifier
-  app ID, and reference the existing Key Vault verifier secret.
-- Preserve the current API image, health probes, HTTP scaling and graceful
-  termination settings. Keep `BC_WRITES_ENABLED` and `BC_DISPATCH_ENABLED` false.
-- The verifier secret is created outside Terraform; no secret values belong in
-  this document or Terraform configuration.
+## Validation
 
-## Validation and deployment
+All validation checks pass:
+- Verify Terraform, Azure CLI, authentication, initialization and state access.
+- Check formatting and configuration; generate and review a fresh plan.
+- Scan template variables and any JSON variable file.
+- Verify Azure policy, deployment roles, and managed identity Key Vault access.
+- Check build as applicable for this infrastructure-only change.
 
-- All validation checks pass:
-  - Terraform and Azure CLI installed and authenticated.
-  - Terraform initialization, formatting, validation, plan and state checks.
-  - Check template variables and any JSON variable files.
-  - Review Azure policy and deployment permissions.
-- Review a fresh plan for unintended changes; apply only the approved API update.
-- Verify the resulting revision, health, configuration and secret reference.
-- A live authenticated sandbox verification requires an approver token.
-
-## Risks
-
-Updating the API creates a revision and can briefly affect availability. The
-verifier identity has administrative permissions; the configured check uses
-only a read-only request. The test handoff remains non-dispatchable.
-
-## Role Assignment Verification
-
-- API identity: Key Vault Secrets User at the Key Vault, AcrPull at the
-  registry, and Event Hubs sender/receiver at the namespace.
-- Web identity: AcrPull at the registry.
-- Deployer: Key Vault Secrets Officer at the Key Vault.
-- The new verifier Key Vault reference uses the existing API identity; no role
-  assignments are changed by this plan. Business Central Admin Center
-  authorization remains separately managed in its tenant.
+The secret exists and is enabled. The API identity has Key Vault Secrets User
+at the vault scope. Terraform configuration and formatting checks passed.
 
 ## Section 7: Validation Proof
 
-- 2026-11-12: Terraform Git Bash preflight passed init, recursive fmt, validate,
-  plan, state list and template scan. Optional JSON tfvars check was skipped
-  because the file does not exist.
-- 2026-11-12: `python -m pytest backend\tests -q`: 88 passed, one existing
-  Pydantic/Python 3.14 compatibility warning.
-- 2026-11-12: `npm run build` in frontend and Python Ruff correctness lint passed.
-- 2026-11-12: Reviewed plan: 0 add, 1 update, 0 destroy; no changes to
-  liveness/readiness/startup probes, HTTP scaling or grace period.
+- Terraform preflight passed init, formatting, validate, plan, state access and
+  template scan; optional JSON tfvars check skipped because the file is absent.
+- Read-only plan: one in-place API update, no other changed resources. Planned
+  secret references retain database, OpenAI and sandbox verifier references,
+  add the purchasing reference and use the existing API managed identity.
+- The planned sandbox proposals flag remains true; all three write and dispatch
+  flags remain false. The temporary sensitive plan file was deleted.
+- The API identity's Key Vault Secrets User assignment exists at vault scope;
+  no role assignment changes are planned. Subscription policy assignments were
+  inspected; final policy enforcement occurs on apply.
+- Focused backend tests: 82 passed, with the existing Python 3.14/Pydantic
+  compatibility warning. Frontend production build passed.
