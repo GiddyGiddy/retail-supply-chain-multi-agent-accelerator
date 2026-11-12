@@ -35,6 +35,12 @@ export function ApprovalTable({ approvals, onDecision, onDispatch, onReconcile, 
               </td>
               <td>
                 <span className={`status-pill ${approval.status}`}>{approval.status}</span>
+                {approval.dispatch?.status === "created" && approval.dispatch.attempt?.erp_order_number && (
+                  <div className="draft-confirmation">
+                    <strong>Business Central draft confirmed: {approval.dispatch.attempt.erp_order_number}</strong>
+                    <span>Recorded as a draft; not released or posted by InventarMind.</span>
+                  </div>
+                )}
                 {approval.dispatch && (
                   <span className="table-summary">
                     PO handoff: {approval.dispatch.status}
