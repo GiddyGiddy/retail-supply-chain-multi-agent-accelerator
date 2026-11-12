@@ -13,7 +13,9 @@ import os
 import re
 import time
 from dataclasses import dataclass
+from decimal import Decimal, InvalidOperation
 from typing import Any, Callable
+from uuid import UUID
 
 import httpx
 
@@ -186,6 +188,77 @@ class BusinessCentralClient:
             ):
                 return order
         return None
+
+    def complete_sandbox_draft(self, order_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        """Complete one verified comment-only draft; never create or delete a header."""
+        try:
+            order_id = str(UUID(order_id))
+        except (ValueError, TypeError, AttributeError) as error:
+            raise BusinessCentralError("Invalid Business Central order ID") from error
+        path = f"purchaseOrders({order_id})"
+
+        def snapshot() -> tuple[dict[str, Any], list[dict[str, Any]]]:
+            order = self._request("GET", path)
+            lines = self._request("GET", f"{path}/purchaseOrderLines")
+            rows = lines.get("value")
+            if not isinstance(rows, list) or lines.get("@odata.nextLink") or not all(isinstance(x, dict) for x in rows):
+                raise BusinessCentralError("Draft lines could not be fully verified")
+            currency = order.get("currencyCode")
+            if (
+                not isinstance(order.get("id"), str) or order["id"].lower() != order_id
+                or not order.get("number")
+                or order.get("status") != "Draft"
+                or order.get("vendorNumber") != payload["vendor_id"]
+                or not isinstance(currency, str) or (currency or self.config.local_currency) != payload["currency"]
+            ):
+                raise BusinessCentralError("Draft header does not match the approved sandbox order")
+            return order, rows
+
+        def money(value: Any) -> Decimal:
+            try:
+                result = Decimal(str(value))
+                if not result.is_finite():
+                    raise ValueError("Non-finite amount")
+                return result
+            except (InvalidOperation, ValueError, TypeError) as error:
+                raise BusinessCentralError("Draft contains an invalid or missing amount") from error
+
+        order, rows = snapshot()
+        if (
+            len(rows) != 1
+            or rows[0].get("lineType") != "Comment"
+            or rows[0].get("description") != payload["po_reference"]
+            or money(order.get("totalAmountExcludingTax")) != 0
+        ):
+            raise BusinessCentralError("Draft is not the expected comment-only order; manual review required")
+        line = payload["lines"][0]
+        expected = money(line["quantity"]) * money(line["unit_price"])
+        self._request("POST", f"{path}/purchaseOrderLines", json={
+            "lineType": "Item",
+            "lineObjectNumber": _code(line["sku"], "item number"),
+            "quantity": line["quantity"],
+            "directUnitCost": line["unit_price"],
+        })
+        final, rows = snapshot()
+        comments = [x for x in rows if x.get("lineType") == "Comment"]
+        items = [x for x in rows if x.get("lineType") == "Item"]
+        empty_id = "00000000-0000-0000-0000-000000000000"
+        if (
+            final.get("number") != order["number"]
+            or len(rows) != 2 or len(comments) != 1 or len(items) != 1
+            or comments[0].get("description") != payload["po_reference"]
+            or items[0].get("lineObjectNumber") != line["sku"]
+            or money(items[0].get("quantity")) != money(line["quantity"])
+            or money(items[0].get("directUnitCost")) != money(line["unit_price"])
+            or money(items[0].get("discountAmount")) != 0
+            or money(items[0].get("discountPercent")) != 0
+            or "locationId" not in items[0]
+            or items[0]["locationId"] not in (None, "", empty_id)
+            or money(items[0].get("amountExcludingTax")) != expected
+            or money(final.get("totalAmountExcludingTax")) != expected
+        ):
+            raise BusinessCentralError("Completed draft does not match the approved order; manual review required")
+        return self._result(final["number"], order_id, final["status"], None)
 
     def create_draft_purchase_order(
         self, payload: dict[str, Any], *,

@@ -13,7 +13,10 @@ from agents.graph.nodes.procurement_vendor import PurchaseOrderDraft
 from agents.guardrails.deterministic import requires_escalated_review
 from agents.tools.business_central import BusinessCentralClient, BusinessCentralConfig
 from src.config.settings import settings
-from src.models import Approval, PurchaseOrderDispatch, PurchaseOrderDispatchAttempt, PurchaseOrderDispatchReconciliation
+from src.models import (
+    Approval, PurchaseOrderDispatch, PurchaseOrderDispatchAttempt, PurchaseOrderDispatchReconciliation,
+    PurchaseOrderDraftRecovery,
+)
 from src.sandbox_target import (
     SandboxVerificationError,
     SandboxVerifierCredentials,
@@ -21,6 +24,101 @@ from src.sandbox_target import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def recover_sandbox_draft(
+    db: Session, approval_id: str, user_subject: str, order_id: str, attempt_started_at: datetime,
+) -> PurchaseOrderDispatch:
+    if not settings.auth_enabled:
+        raise HTTPException(status_code=503, detail="Draft recovery requires authentication")
+    if any(os.getenv(flag, "false").strip().lower() not in {"1", "true", "yes"} for flag in (
+        "BC_DISPATCH_ENABLED", "BC_SANDBOX_DISPATCH_ENABLED",
+    )):
+        raise HTTPException(status_code=503, detail="Sandbox draft recovery is disabled")
+    if attempt_started_at.utcoffset() is None:
+        raise HTTPException(status_code=422, detail="Attempt timestamp must include a timezone")
+    dispatch = db.get(PurchaseOrderDispatch, approval_id)
+    if dispatch is None:
+        raise HTTPException(status_code=404, detail="PO handoff not found")
+    approval = db.get(Approval, approval_id)
+    attempt = db.get(PurchaseOrderDispatchAttempt, approval_id)
+    actual_time = attempt.started_at if attempt else None
+    if actual_time is not None and actual_time.utcoffset() is not None:
+        actual_time = actual_time.astimezone(timezone.utc).replace(tzinfo=None)
+    if (
+        approval is None or approval.status != "approved"
+        or approval.payload.get("sandbox_test") is not True
+        or dispatch.approved_payload.get("sandbox_test") is not True
+        or dispatch.status != "needs_review"
+        or attempt is None or attempt.outcome != "needs_review"
+        or not attempt.erp_order_id or attempt.erp_order_id != order_id
+        or actual_time != attempt_started_at.astimezone(timezone.utc).replace(tzinfo=None)
+        or db.get(PurchaseOrderDraftRecovery, approval_id) is not None
+    ):
+        raise HTTPException(status_code=409, detail="Handoff is not eligible for draft recovery")
+    payload = _validated_draft(dispatch)
+    try:
+        config = BusinessCentralConfig.from_env()
+        config.validate()
+        verify_sandbox_target(config, SandboxVerifierCredentials.from_env())
+    except (NotImplementedError, SandboxVerificationError) as error:
+        logger.warning("Sandbox recovery verification failed for approval %s: %s", approval_id, error)
+        raise HTTPException(status_code=503, detail="Sandbox verification failed; no order was changed") from error
+    claimed = db.execute(
+        update(PurchaseOrderDispatch)
+        .where(
+            PurchaseOrderDispatch.approval_id == approval_id,
+            PurchaseOrderDispatch.status == "needs_review",
+            exists(select(PurchaseOrderDispatchAttempt.approval_id).where(
+                PurchaseOrderDispatchAttempt.approval_id == approval_id,
+                PurchaseOrderDispatchAttempt.started_at == attempt.started_at,
+                PurchaseOrderDispatchAttempt.outcome == "needs_review",
+                PurchaseOrderDispatchAttempt.erp_order_id == order_id,
+            )),
+            ~exists(select(PurchaseOrderDraftRecovery.approval_id).where(
+                PurchaseOrderDraftRecovery.approval_id == approval_id,
+            )),
+        ).values(status="recovery_in_progress").execution_options(synchronize_session=False)
+    )
+    if claimed.rowcount != 1:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Draft recovery was already claimed")
+    recovery = PurchaseOrderDraftRecovery(
+        approval_id=approval_id, erp_order_id=order_id, started_by=user_subject, outcome="in_progress",
+    )
+    db.add(recovery)
+    db.commit()
+    db.refresh(dispatch)
+    try:
+        client = BusinessCentralClient(config)
+        try:
+            result = client.complete_sandbox_draft(order_id, payload)
+        finally:
+            client.close()
+        if (
+            result.get("erp_po_id") != order_id or result.get("erp_status") != "Draft"
+            or result.get("total_matches") is not True or not result.get("po_number")
+        ):
+            raise ValueError("Recovered draft requires manual review")
+        attempt.erp_order_number = result["po_number"]
+        dispatch.status = "created"
+        recovery.outcome = "created"
+        recovery.finished_at = datetime.now(timezone.utc)
+        db.commit()
+    except Exception as error:
+        logger.exception("Sandbox draft recovery failed for approval %s; manual reconciliation required", approval_id)
+        db.rollback()
+        recovery = db.get(PurchaseOrderDraftRecovery, approval_id)
+        dispatch = db.get(PurchaseOrderDispatch, approval_id)
+        recovery.outcome = "needs_review"
+        recovery.finished_at = datetime.now(timezone.utc)
+        dispatch.status = "needs_review"
+        db.commit()
+        raise HTTPException(
+            status_code=502, detail="Draft recovery outcome requires manual review; do not retry",
+        ) from error
+    db.refresh(dispatch)
+    return dispatch
 
 
 def reconcile_sandbox_order(

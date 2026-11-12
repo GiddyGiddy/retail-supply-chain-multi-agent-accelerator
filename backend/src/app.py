@@ -13,13 +13,13 @@ from src.config.settings import settings
 from src.database import Base, engine, get_db
 from src.event_bus import event_bus
 from src.models import Approval, PurchaseOrderDispatch
-from src.purchase_order_dispatch import dispatch_held_order, reconcile_sandbox_order
+from src.purchase_order_dispatch import dispatch_held_order, reconcile_sandbox_order, recover_sandbox_draft
 from src.sandbox_proposal import build_sandbox_proposal, sandbox_proposals_enabled
 from src.sandbox_target import SandboxVerificationError, SandboxVerifierCredentials, verify_sandbox_target
 from agents.tools.business_central import BusinessCentralConfig
 from src.schemas import (
     AgentInfo, AgentRunRequest, AgentRunResponse, ApprovalDecision, ApprovalResponse,
-    PurchaseOrderDispatchResponse, PurchaseOrderReconciliationRequest,
+    PurchaseOrderDispatchResponse, PurchaseOrderReconciliationRequest, PurchaseOrderDraftRecoveryRequest,
 )
 
 
@@ -62,6 +62,7 @@ def list_approvals(
         select(Approval).options(
             selectinload(Approval.dispatch).selectinload(PurchaseOrderDispatch.attempt),
             selectinload(Approval.dispatch).selectinload(PurchaseOrderDispatch.reconciliations),
+            selectinload(Approval.dispatch).selectinload(PurchaseOrderDispatch.recovery),
         )
         .order_by(Approval.created_at.desc())
     ).all())
@@ -124,6 +125,16 @@ def reconcile_approval(
     db: Annotated[Session, Depends(get_db)],
 ) -> PurchaseOrderDispatch:
     return reconcile_sandbox_order(db, approval_id, user.subject, request.evidence, request.attempt_started_at)
+
+
+@app.post("/api/approvals/{approval_id}/recover-sandbox-draft", response_model=PurchaseOrderDispatchResponse)
+def recover_approval(
+    approval_id: str,
+    request: PurchaseOrderDraftRecoveryRequest,
+    user: Annotated[CurrentUser, Depends(require_approval_user)],
+    db: Annotated[Session, Depends(get_db)],
+) -> PurchaseOrderDispatch:
+    return recover_sandbox_draft(db, approval_id, user.subject, request.erp_order_id, request.attempt_started_at)
 
 
 @app.get("/api/sandbox/proposals/status")

@@ -81,8 +81,8 @@ automatically dispatch a Business Central purchase order. Vendor approvals creat
 held handoff containing the approved proposal, approver, timestamp and a unique
 reference in the same database transaction as the decision. A held handoff does
 not mean a draft exists in Business Central.
-The API creates `purchase_order_dispatches`, `purchase_order_dispatch_attempts`, and
-`purchase_order_dispatch_reconciliations` at startup; its
+The API creates `purchase_order_dispatches`, `purchase_order_dispatch_attempts`,
+`purchase_order_dispatch_reconciliations`, and `purchase_order_draft_recoveries` at startup; its
 database identity must have permission to create tables. Existing approved
 proposals are not automatically backfilled.
 
@@ -189,6 +189,21 @@ and repeats all dispatch and sandbox checks. If a reconciliation response is
 lost, refresh and check the audit record; the browser-session safety marker may
 still block sending in that session. Never clear it without reviewing the result.
 Email and vendor acknowledgements remain separate, unimplemented steps.
+For a fixed sandbox test with a known ERP order ID in `needs_review`, an
+authenticated approver can separately choose **Complete existing sandbox draft**.
+It requires the existing write and sandbox dispatch flags and repeats target
+verification. It atomically records one recovery attempt, then reads the specific
+draft and requires its matching vendor, currency, reference comment, zero total,
+and no other lines before adding the approved item. It reads back the order and
+lines to verify the draft, item, quantity, unit cost, discount, location and
+total; it never creates another header, releases, posts, or deletes the order.
+The original failed attempt remains in the audit trail. A failed, interrupted,
+or ambiguous recovery stays locked and cannot be automatically retried; inspect
+Business Central manually. The API cannot lock Business Central against other
+users or integrations, so the approver must coordinate exclusive access to the
+draft and lines before and throughout recovery. The UI confirmation requires
+that attestation; the recovery record identifies the approver and time. Do not
+recover if concurrent edits cannot be excluded.
 The approval queue offers a separate confirmation and dispatch button only for
 approved, held sandbox test handoffs. It shows the resulting draft number or a
 reconciliation warning. A browser-session safety marker prevents another click

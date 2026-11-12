@@ -41,6 +41,9 @@ class PurchaseOrderDispatch(Base):
     reconciliations: Mapped[list["PurchaseOrderDispatchReconciliation"]] = relationship(
         back_populates="dispatch", order_by="PurchaseOrderDispatchReconciliation.reconciled_at"
     )
+    recovery: Mapped["PurchaseOrderDraftRecovery | None"] = relationship(
+        back_populates="dispatch", uselist=False
+    )
 
 
 class PurchaseOrderDispatchAttempt(Base):
@@ -75,3 +78,17 @@ class PurchaseOrderDispatchReconciliation(Base):
     )
     evidence: Mapped[str] = mapped_column(Text, nullable=False)
     dispatch: Mapped[PurchaseOrderDispatch] = relationship(back_populates="reconciliations")
+
+
+class PurchaseOrderDraftRecovery(Base):
+    __tablename__ = "purchase_order_draft_recoveries"
+
+    approval_id: Mapped[str] = mapped_column(ForeignKey("purchase_order_dispatches.approval_id"), primary_key=True)
+    erp_order_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    started_by: Mapped[str] = mapped_column(String(255), nullable=False)
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
+    )
+    outcome: Mapped[str] = mapped_column(String(30), nullable=False, default="in_progress")
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    dispatch: Mapped[PurchaseOrderDispatch] = relationship(back_populates="recovery")
