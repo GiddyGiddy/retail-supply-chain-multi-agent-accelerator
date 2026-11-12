@@ -13,13 +13,13 @@ from src.config.settings import settings
 from src.database import Base, engine, get_db
 from src.event_bus import event_bus
 from src.models import Approval, PurchaseOrderDispatch
-from src.purchase_order_dispatch import dispatch_held_order
+from src.purchase_order_dispatch import dispatch_held_order, reconcile_sandbox_order
 from src.sandbox_proposal import build_sandbox_proposal, sandbox_proposals_enabled
 from src.sandbox_target import SandboxVerificationError, SandboxVerifierCredentials, verify_sandbox_target
 from agents.tools.business_central import BusinessCentralConfig
 from src.schemas import (
     AgentInfo, AgentRunRequest, AgentRunResponse, ApprovalDecision, ApprovalResponse,
-    PurchaseOrderDispatchResponse,
+    PurchaseOrderDispatchResponse, PurchaseOrderReconciliationRequest,
 )
 
 
@@ -59,7 +59,10 @@ def list_approvals(
     db: Annotated[Session, Depends(get_db)],
 ) -> list[Approval]:
     return list(db.scalars(
-        select(Approval).options(selectinload(Approval.dispatch).selectinload(PurchaseOrderDispatch.attempt))
+        select(Approval).options(
+            selectinload(Approval.dispatch).selectinload(PurchaseOrderDispatch.attempt),
+            selectinload(Approval.dispatch).selectinload(PurchaseOrderDispatch.reconciliations),
+        )
         .order_by(Approval.created_at.desc())
     ).all())
 
@@ -111,6 +114,16 @@ def dispatch_approval(
     db: Annotated[Session, Depends(get_db)],
 ) -> PurchaseOrderDispatch:
     return dispatch_held_order(db, approval_id, user.subject)
+
+
+@app.post("/api/approvals/{approval_id}/reconcile-no-order", response_model=PurchaseOrderDispatchResponse)
+def reconcile_approval(
+    approval_id: str,
+    request: PurchaseOrderReconciliationRequest,
+    user: Annotated[CurrentUser, Depends(require_approval_user)],
+    db: Annotated[Session, Depends(get_db)],
+) -> PurchaseOrderDispatch:
+    return reconcile_sandbox_order(db, approval_id, user.subject, request.evidence, request.attempt_started_at)
 
 
 @app.get("/api/sandbox/proposals/status")

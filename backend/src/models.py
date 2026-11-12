@@ -38,6 +38,9 @@ class PurchaseOrderDispatch(Base):
     attempt: Mapped["PurchaseOrderDispatchAttempt | None"] = relationship(
         back_populates="dispatch", uselist=False
     )
+    reconciliations: Mapped[list["PurchaseOrderDispatchReconciliation"]] = relationship(
+        back_populates="dispatch", order_by="PurchaseOrderDispatchReconciliation.reconciled_at"
+    )
 
 
 class PurchaseOrderDispatchAttempt(Base):
@@ -54,3 +57,21 @@ class PurchaseOrderDispatchAttempt(Base):
     erp_order_number: Mapped[str | None] = mapped_column(String(100), nullable=True)
     outcome: Mapped[str] = mapped_column(String(30), nullable=False, default="in_progress")
     dispatch: Mapped[PurchaseOrderDispatch] = relationship(back_populates="attempt")
+
+
+class PurchaseOrderDispatchReconciliation(Base):
+    __tablename__ = "purchase_order_dispatch_reconciliations"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    approval_id: Mapped[str] = mapped_column(ForeignKey("purchase_order_dispatches.approval_id"), nullable=False)
+    started_by: Mapped[str] = mapped_column(String(255), nullable=False)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    outcome: Mapped[str] = mapped_column(String(30), nullable=False)
+    erp_order_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    erp_order_number: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    reconciled_by: Mapped[str] = mapped_column(String(255), nullable=False)
+    reconciled_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
+    )
+    evidence: Mapped[str] = mapped_column(Text, nullable=False)
+    dispatch: Mapped[PurchaseOrderDispatch] = relationship(back_populates="reconciliations")

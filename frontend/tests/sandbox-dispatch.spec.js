@@ -95,3 +95,53 @@ test("uncertain failure warns, refreshes, and prevents retry after reload", asyn
   await expect(page.getByText("Dispatch was attempted.", { exact: false })).toBeVisible();
   expect(calls).toBe(1);
 });
+
+test("manual reconciliation records evidence without dispatching and permits a separate send", async ({ page }) => {
+  let reconciliations = 0;
+  let dispatches = 0;
+  let reconciled = false;
+  await page.addInitScript(() => {
+    sessionStorage.setItem("inventarmind-sandbox-dispatch-attempts", JSON.stringify(["test-review"]));
+  });
+  await page.route(`${endpoint}**`, async (route) => {
+    if (route.request().method() === "OPTIONS") {
+      await route.fulfill({ status: 204, headers: cors });
+    } else if (route.request().url().endsWith("/reconcile-no-order")) {
+      reconciliations++;
+      const body = route.request().postDataJSON();
+      expect(body.confirmed_no_order).toBe(true);
+      expect(body.evidence).toContain("incomplete");
+      expect(body.attempt_started_at).toBe("2026-11-12T12:00:00Z");
+      reconciled = true;
+      const item = approval("test-review", "approved", true, "held");
+      item.dispatch.reconciliations = [{
+        id: "reconciliation", reconciled_by: "approver", reconciled_at: "2026-11-12T12:00:00Z",
+        evidence: body.evidence,
+      }];
+      await route.fulfill({ status: 200, headers: cors, json: item.dispatch });
+    } else if (route.request().url().endsWith("/dispatch")) {
+      dispatches++;
+      await route.fulfill({ status: 500, headers: cors });
+    } else {
+      const item = approval("test-review", "approved", true, reconciled ? "held" : "needs_review");
+      if (!reconciled) item.dispatch.attempt = {
+        started_at: "2026-11-12T12:00:00Z", outcome: "needs_review", erp_order_id: null, erp_order_number: null,
+      };
+      if (reconciled) item.dispatch.reconciliations = [{
+        id: "reconciliation", reconciled_by: "approver", reconciled_at: "2026-11-12T12:00:00Z",
+        evidence: "Checked incomplete headers in TestCompany.",
+      }];
+      await route.fulfill({ status: 200, headers: cors, json: [item] });
+    }
+  });
+  await page.goto("/approvals");
+  page.on("dialog", (dialog) => dialog.type() === "prompt"
+    ? dialog.accept("Checked incomplete headers in TestCompany.")
+    : dialog.accept());
+  await page.getByRole("button", { name: "Reconcile no order found" }).click();
+  await expect(page.getByRole("status")).toContainText("No order was sent");
+  await expect(page.getByText("No-order reconciliation by approver", { exact: false })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Send test draft to Business Central" })).toBeVisible();
+  expect(reconciliations).toBe(1);
+  expect(dispatches).toBe(0);
+});

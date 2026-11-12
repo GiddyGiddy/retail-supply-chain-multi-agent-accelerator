@@ -81,7 +81,8 @@ automatically dispatch a Business Central purchase order. Vendor approvals creat
 held handoff containing the approved proposal, approver, timestamp and a unique
 reference in the same database transaction as the decision. A held handoff does
 not mean a draft exists in Business Central.
-The API creates `purchase_order_dispatches` and `purchase_order_dispatch_attempts` at startup; its
+The API creates `purchase_order_dispatches`, `purchase_order_dispatch_attempts`, and
+`purchase_order_dispatch_reconciliations` at startup; its
 database identity must have permission to create tables. Existing approved
 proposals are not automatically backfilled.
 
@@ -168,12 +169,26 @@ diagnostic, not an authorization for a later dispatch. Each sandbox dispatch
 independently rechecks the target before claiming the handoff, using the same
 configuration for verification and the Business Central client. A failed
 preflight leaves the handoff held without creating an attempt or sending an order.
-The dispatcher atomically claims each handoff once. An error or an interrupted
+The dispatcher atomically claims a held handoff for each dispatch attempt. An error or an interrupted
 `in_progress` attempt requires manual reconciliation in Business Central,
 including checking for incomplete headers and lines. A timeout may leave a
 header without a reference or known ID. Do not retry or create a replacement
-until an operator has verified the outcome; there is no automatic retry or
-reset endpoint. Email and vendor acknowledgements remain separate, unimplemented steps.
+until an operator has verified the outcome; there is no automatic retry.
+For an approved fixed sandbox test in `needs_review` with an uncertain attempt and
+no recorded ERP ID or number, an authenticated approver can use **Reconcile no
+order found** after independently checking the correct Business Central company,
+including incomplete headers and lines. The approver must confirm no order exists
+and describe the evidence. The API atomically archives the attempt and operator's
+attestation, then returns the handoff to `held`; it does not contact Business
+Central or send an order. The request identifies the specific attempt by its
+start time, so a stale reconciliation cannot clear a later attempt. Evidence is visible to users who can read the approval
+queue, so do not include sensitive information. A known ERP ID, an in-progress
+attempt, or a standard proposal is not eligible. The operator's attestation is
+not independent proof of absence. A later dispatch is a separate explicit action
+and repeats all dispatch and sandbox checks. If a reconciliation response is
+lost, refresh and check the audit record; the browser-session safety marker may
+still block sending in that session. Never clear it without reviewing the result.
+Email and vendor acknowledgements remain separate, unimplemented steps.
 The approval queue offers a separate confirmation and dispatch button only for
 approved, held sandbox test handoffs. It shows the resulting draft number or a
 reconciliation warning. A browser-session safety marker prevents another click

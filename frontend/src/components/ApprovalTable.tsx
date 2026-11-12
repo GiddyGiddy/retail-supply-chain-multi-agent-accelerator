@@ -4,11 +4,12 @@ interface ApprovalTableProps {
   approvals: Approval[];
   onDecision: (approval: Approval, decision: "approved" | "rejected") => void;
   onDispatch: (approval: Approval) => void;
+  onReconcile: (approval: Approval) => void;
   attemptedIds: ReadonlySet<string>;
   busyId: string | null;
 }
 
-export function ApprovalTable({ approvals, onDecision, onDispatch, attemptedIds, busyId }: ApprovalTableProps) {
+export function ApprovalTable({ approvals, onDecision, onDispatch, onReconcile, attemptedIds, busyId }: ApprovalTableProps) {
   if (approvals.length === 0) {
     return <div className="empty-state">No proposals yet. Run the agent workflow to create one.</div>;
   }
@@ -43,6 +44,12 @@ export function ApprovalTable({ approvals, onDecision, onDispatch, attemptedIds,
                     {approval.dispatch.attempt?.erp_order_number && `: ${approval.dispatch.attempt.erp_order_number}`}
                   </span>
                 )}
+                {approval.dispatch?.reconciliations?.map((record) => (
+                  <span className="table-summary" key={record.id}>
+                    No-order reconciliation by {record.reconciled_by} on {new Date(record.reconciled_at).toLocaleString()}:
+                    {" "}{record.evidence}
+                  </span>
+                ))}
               </td>
               <td>{new Date(approval.created_at).toLocaleString()}</td>
               <td>
@@ -55,6 +62,13 @@ export function ApprovalTable({ approvals, onDecision, onDispatch, attemptedIds,
                   approval.dispatch?.status === "held" && !attemptedIds.has(approval.id) ? (
                     <button className="button button-small" disabled={busyId !== null} onClick={() => onDispatch(approval)}>
                       Send test draft to Business Central
+                    </button>
+                ) : approval.status === "approved" && approval.payload.sandbox_test === true &&
+                  approval.dispatch?.status === "needs_review" && approval.dispatch.attempt &&
+                  approval.dispatch.attempt.outcome === "needs_review" &&
+                  !approval.dispatch.attempt.erp_order_id && !approval.dispatch.attempt.erp_order_number ? (
+                    <button className="button button-small button-muted" disabled={busyId !== null} onClick={() => onReconcile(approval)}>
+                      Reconcile no order found
                     </button>
                 ) : attemptedIds.has(approval.id) && approval.dispatch?.status === "held" ? (
                   <span className="table-summary">Dispatch was attempted. Check the handoff and Business Central before any retry.</span>

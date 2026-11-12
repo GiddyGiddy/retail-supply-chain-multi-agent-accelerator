@@ -96,6 +96,50 @@ export function ApprovalQueue({ account }: ApprovalQueueProps) {
     }
   }
 
+  async function reconcile(approval: Approval) {
+    if (busyId !== null || dispatching.current || !approval.dispatch?.attempt) return;
+    const evidence = window.prompt(
+      "Describe your Business Central checks, including the sandbox company, time and checks for incomplete headers and lines. " +
+      "Do not include sensitive information. This record is visible to users who can view the approval queue.",
+    );
+    if (evidence === null) return;
+    if (evidence.trim().length < 20) {
+      setDispatchError("Please provide at least 20 characters describing the checks performed.");
+      return;
+    }
+    if (!window.confirm(
+      `Reference: ${approval.dispatch?.reference}\n` +
+      `Attempt started: ${approval.dispatch?.attempt?.started_at}\n` +
+      "Sandbox: InventarMind, company ID: 6ecc6e3d-f6bb-f111-85be-7c1e52401c43.\n\n" +
+      "Have you independently confirmed that no purchase order or incomplete header exists in this company?\n\n" +
+      "This records your findings and makes the handoff eligible for a separate dispatch. It does not send an order.",
+    )) return;
+    setBusyId(approval.id);
+    setNotice("");
+    setDispatchError("");
+    try {
+      const result = await apiRequest<PurchaseOrderDispatch>(
+        `/api/approvals/${approval.id}/reconcile-no-order`, account,
+        { method: "POST", body: JSON.stringify({
+          confirmed_no_order: true, evidence: evidence.trim(), attempt_started_at: approval.dispatch.attempt.started_at,
+        }) },
+      );
+      if (result.status !== "held" || result.attempt !== null) {
+        throw new Error("The reconciliation response did not confirm a held handoff.");
+      }
+      const attempts = readAttempts();
+      attempts.delete(approval.id);
+      sessionStorage.setItem(attemptedKey, JSON.stringify([...attempts]));
+      setAttemptedIds(attempts);
+      setNotice("Reconciliation recorded. No order was sent; a separate dispatch confirmation is required.");
+    } catch (reason) {
+      setDispatchError(`${reason instanceof Error ? reason.message : "Reconciliation failed."} Refresh and check the handoff before taking further action.`);
+    } finally {
+      await refresh();
+      setBusyId(null);
+    }
+  }
+
   return (
     <main className="page">
       <div className="page-heading">
@@ -116,7 +160,8 @@ export function ApprovalQueue({ account }: ApprovalQueueProps) {
         {!loading && !error && (
           <ApprovalTable approvals={approvals} busyId={busyId} attemptedIds={attemptedIds}
             onDecision={(approval, decision) => void decide(approval.id, decision)}
-            onDispatch={(approval) => void dispatch(approval)} />
+            onDispatch={(approval) => void dispatch(approval)}
+            onReconcile={(approval) => void reconcile(approval)} />
         )}
       </section>
     </main>
