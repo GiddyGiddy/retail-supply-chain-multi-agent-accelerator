@@ -24,7 +24,7 @@ def build_sandbox_proposal() -> SupplyChainState:
         "summary": (
             "Sandbox test only: 10 units of item 1000 from vendor V00010 at EUR 5.00 "
             "each, total EUR 50.00 before tax. Price is an assumption, not a vendor quote. "
-            "This proposal cannot be dispatched."
+            "Dispatch requires a separate sandbox enablement and target verification."
         ),
         "sandbox_test": True,
         "po_draft": po.model_dump(mode="json"),

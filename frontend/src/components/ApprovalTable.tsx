@@ -22,7 +22,12 @@ export function ApprovalTable({ approvals, onDecision, busyId }: ApprovalTablePr
             <tr key={approval.id}>
               <td>
                 <strong>{approval.title}</strong>
-                <span className="table-summary">{approval.summary}</span>
+                <span className="table-summary">{approval.payload.sandbox_test === true
+                  ? approval.summary.replace(
+                    "This proposal cannot be dispatched.",
+                    "Dispatch requires a separate sandbox enablement and target verification.",
+                  )
+                  : approval.summary}</span>
               </td>
               <td>
                 <span className={`status-pill ${approval.status}`}>{approval.status}</span>
@@ -30,7 +35,7 @@ export function ApprovalTable({ approvals, onDecision, busyId }: ApprovalTablePr
                   <span className="table-summary">
                     PO handoff: {approval.dispatch.status}
                     {approval.dispatch.status === "held" && " (not sent to Business Central)"}
-                    {approval.payload.sandbox_test === true && " — sandbox test; dispatch blocked"}
+                    {approval.payload.sandbox_test === true && " — sandbox test; dispatch requires separate enablement and verification"}
                     {approval.dispatch.status === "in_progress" && " (in progress; check before retrying)"}
                     {approval.dispatch.status === "needs_review" && " (manual reconciliation required)"}
                     {approval.dispatch.attempt?.erp_order_number && `: ${approval.dispatch.attempt.erp_order_number}`}

@@ -110,9 +110,13 @@ creates a clearly labeled pending proposal for vendor `V00010`, item `1000`,
 assumption, not a vendor quote. Creating it requires the approver role when
 authentication is enabled. It bypasses the agent workflow and does not access
 Business Central. Approval creates a held handoff, but **sandbox test handoffs
-cannot be dispatched**, even when both write flags are enabled. A future step
-must establish a verified sandbox-target safeguard before draft testing. The
-option is off by default and does not alter the normal demo workflow.
+remain unsent** until a separate dispatch request succeeds. Sandbox dispatch
+additionally requires `BC_SANDBOX_DISPATCH_ENABLED=true` (default false), an
+exact match to the agreed test facts, and a fresh successful sandbox-target
+verification. Both global write flags must also be enabled. Terraform explicitly
+keeps all three dispatch/write flags false; do not enable them until sandbox
+readiness and business approval are complete. The proposal option is off by
+default and does not alter the normal demo workflow.
 For local Docker Compose, add `SANDBOX_PROPOSALS_ENABLED=true` to the local
 `.env` file and run `docker compose up --build`; remove it or set it to `false`
 to hide the button and disable proposal creation. Local authentication remains
@@ -145,9 +149,10 @@ before applying: Terraform manages the API's environment and can remove
 portal-only settings. The configured BC target alone is not write permission;
 both dispatch and write flags remain explicitly false.
 Failures return 503 without disclosing credentials. This endpoint is a point-in-time
-diagnostic, **not yet a dispatch authorization**: sandbox handoffs remain blocked.
-Before permitting dispatch, a future change must recheck the same target at
-dispatch time and protect against configuration changes between check and use.
+diagnostic, not an authorization for a later dispatch. Each sandbox dispatch
+independently rechecks the target before claiming the handoff, using the same
+configuration for verification and the Business Central client. A failed
+preflight leaves the handoff held without creating an attempt or sending an order.
 The dispatcher atomically claims each handoff once. An error or an interrupted
 `in_progress` attempt requires manual reconciliation in Business Central,
 including checking for incomplete headers and lines. A timeout may leave a

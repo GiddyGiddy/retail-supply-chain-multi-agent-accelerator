@@ -344,6 +344,10 @@ resource "azurerm_container_app" "api" {
         value = "false"
       }
       env {
+        name  = "BC_SANDBOX_DISPATCH_ENABLED"
+        value = "false"
+      }
+      env {
         name  = "SANDBOX_PROPOSALS_ENABLED"
         value = tostring(var.sandbox_proposals_enabled)
       }
