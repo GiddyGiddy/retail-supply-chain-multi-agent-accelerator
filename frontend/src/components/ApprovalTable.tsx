@@ -3,10 +3,12 @@ import type { Approval } from "../types";
 interface ApprovalTableProps {
   approvals: Approval[];
   onDecision: (approval: Approval, decision: "approved" | "rejected") => void;
+  onDispatch: (approval: Approval) => void;
+  attemptedIds: ReadonlySet<string>;
   busyId: string | null;
 }
 
-export function ApprovalTable({ approvals, onDecision, busyId }: ApprovalTableProps) {
+export function ApprovalTable({ approvals, onDecision, onDispatch, attemptedIds, busyId }: ApprovalTableProps) {
   if (approvals.length === 0) {
     return <div className="empty-state">No proposals yet. Run the agent workflow to create one.</div>;
   }
@@ -34,7 +36,7 @@ export function ApprovalTable({ approvals, onDecision, busyId }: ApprovalTablePr
                 {approval.dispatch && (
                   <span className="table-summary">
                     PO handoff: {approval.dispatch.status}
-                    {approval.dispatch.status === "held" && " (not sent to Business Central)"}
+                    {approval.dispatch.status === "held" && !attemptedIds.has(approval.id) && " (not sent to Business Central)"}
                     {approval.payload.sandbox_test === true && " — sandbox test; dispatch requires separate enablement and verification"}
                     {approval.dispatch.status === "in_progress" && " (in progress; check before retrying)"}
                     {approval.dispatch.status === "needs_review" && " (manual reconciliation required)"}
@@ -46,9 +48,16 @@ export function ApprovalTable({ approvals, onDecision, busyId }: ApprovalTablePr
               <td>
                 {approval.status === "pending" ? (
                   <div className="actions">
-                    <button className="button button-small" disabled={busyId === approval.id} onClick={() => onDecision(approval, "approved")}>Approve</button>
-                    <button className="button button-small button-muted" disabled={busyId === approval.id} onClick={() => onDecision(approval, "rejected")}>Reject</button>
+                    <button className="button button-small" disabled={busyId !== null} onClick={() => onDecision(approval, "approved")}>Approve</button>
+                    <button className="button button-small button-muted" disabled={busyId !== null} onClick={() => onDecision(approval, "rejected")}>Reject</button>
                   </div>
+                ) : approval.status === "approved" && approval.payload.sandbox_test === true &&
+                  approval.dispatch?.status === "held" && !attemptedIds.has(approval.id) ? (
+                    <button className="button button-small" disabled={busyId !== null} onClick={() => onDispatch(approval)}>
+                      Send test draft to Business Central
+                    </button>
+                ) : attemptedIds.has(approval.id) && approval.dispatch?.status === "held" ? (
+                  <span className="table-summary">Dispatch was attempted. Check the handoff and Business Central before any retry.</span>
                 ) : <span className="muted">Recorded</span>}
               </td>
             </tr>

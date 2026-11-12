@@ -346,15 +346,15 @@ resource "azurerm_container_app" "api" {
       }
       env {
         name  = "BC_WRITES_ENABLED"
-        value = "false"
+        value = "true"
       }
       env {
         name  = "BC_DISPATCH_ENABLED"
-        value = "false"
+        value = "true"
       }
       env {
         name  = "BC_SANDBOX_DISPATCH_ENABLED"
-        value = "false"
+        value = "true"
       }
       env {
         name  = "BC_STANDARD_DISPATCH_ENABLED"

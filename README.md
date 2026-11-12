@@ -87,8 +87,9 @@ proposals are not automatically backfilled.
 
 The approver-only `POST /api/approvals/{approval_id}/dispatch` endpoint is
 disabled by default and requires authentication, an approver role, both `BC_DISPATCH_ENABLED=true` and
-`BC_WRITES_ENABLED=true`, plus valid Business Central configuration. Keep both
-disabled until sandbox testing and business approval are complete. The current
+`BC_WRITES_ENABLED=true`, plus valid Business Central configuration. Both flags
+default to false in the application; enable them only for the approved sandbox
+test. The current
 workflow uses demo data and is not suitable for real orders. Dispatch of
 standard (non-test) proposals additionally requires
 `BC_STANDARD_DISPATCH_ENABLED=true`; this flag defaults to false. Explicit
@@ -117,10 +118,12 @@ Business Central. Approval creates a held handoff, but **sandbox test handoffs
 remain unsent** until a separate dispatch request succeeds. Sandbox dispatch
 additionally requires `BC_SANDBOX_DISPATCH_ENABLED=true` (default false), an
 exact match to the agreed test facts, and a fresh successful sandbox-target
-verification. Both global write flags must also be enabled. Terraform explicitly
-keeps all three dispatch/write flags false; do not enable them until sandbox
-readiness and business approval are complete. The proposal option is off by
-default and does not alter the normal demo workflow.
+verification. Both global write flags must also be enabled. This deployment's
+Terraform configuration enables these three flags for sandbox testing; review
+the plan and obtain business approval before applying. Enabling them permits
+any qualifying fixed sandbox test handoff to be dispatched by an approver; it
+does not send an order by itself. The proposal option is off by default and
+does not alter the normal demo workflow.
 Terraform also explicitly keeps standard dispatch disabled. Enabling sandbox
 dispatch requires first deploying a version of the API that enforces the
 standard-dispatch flag; older revisions do not honor it.
@@ -153,8 +156,8 @@ the API's managed identity; it never reads or stores this verifier secret's
 value in state. The secret must exist and the identity must be able to read it
 before the new Container App revision starts. Review the complete Terraform plan
 before applying: Terraform manages the API's environment and can remove
-portal-only settings. The configured BC target alone is not write permission;
-both dispatch and write flags remain explicitly false.
+portal-only settings. The configured BC target alone is not proof of purchase
+order permissions.
 The optional `bc_purchasing_secret_name` separately references an existing Key
 Vault secret as `BC_CLIENT_SECRET` using the API's managed identity. Create that
 secret outside Terraform before applying; only its name and versionless reference,
@@ -171,7 +174,14 @@ including checking for incomplete headers and lines. A timeout may leave a
 header without a reference or known ID. Do not retry or create a replacement
 until an operator has verified the outcome; there is no automatic retry or
 reset endpoint. Email and vendor acknowledgements remain separate, unimplemented steps.
-The dashboard displays handoff status, but does not yet provide a dispatch button.
+The approval queue offers a separate confirmation and dispatch button only for
+approved, held sandbox test handoffs. It shows the resulting draft number or a
+reconciliation warning. A browser-session safety marker prevents another click
+after an attempted request, even if a refresh still shows `held`; investigate
+the outcome before using another session or otherwise retrying.
+To run the dashboard's isolated browser tests, run `npm ci`,
+`npx playwright install chromium`, and `npm test` from `frontend`. They use
+mock API responses and do not send orders to Business Central.
 
 For deployments, set `AUTH_ENABLED=true`, `ENTRA_TENANT_ID`, and `ENTRA_API_CLIENT_ID` in the API environment. Configure `VITE_AUTH_ENABLED=true`, `VITE_ENTRA_TENANT_ID`, `VITE_ENTRA_CLIENT_ID`, and `VITE_ENTRA_API_SCOPE` for the frontend. The API validates Entra-issued RS256 access tokens, including issuer and audience. Do not use the local unauthenticated profile in a reachable environment.
 
