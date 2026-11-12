@@ -1,16 +1,17 @@
 from types import SimpleNamespace
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, event, select
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
-
+from src import purchase_order_dispatch
 from src.app import app, event_bus
 from src.auth import CurrentUser, require_approval_user
 from src.database import Base, get_db
 from src.models import Approval, PurchaseOrderDispatch
-from src import purchase_order_dispatch
+from src.sandbox_target import EXPECTED_TENANT_ID, verify_sandbox_target
 
 
 @pytest.fixture
@@ -123,10 +124,11 @@ def test_sandbox_proposal_requires_approver_when_auth_enabled(api, monkeypatch):
     assert client.post("/api/sandbox/proposals").status_code == 403
 
 
-def test_sandbox_proposal_requires_human_approval_and_never_dispatches(api, monkeypatch):
+def test_sandbox_proposal_requires_human_approval_and_disabled_by_default(api, monkeypatch):
     client, sessions, _ = api
     monkeypatch.setenv("SANDBOX_PROPOSALS_ENABLED", "true")
     monkeypatch.setenv("BC_DISPATCH_ENABLED", "true")
+    monkeypatch.delenv("BC_SANDBOX_DISPATCH_ENABLED", raising=False)
     monkeypatch.setattr(purchase_order_dispatch, "settings", SimpleNamespace(auth_enabled=True))
     monkeypatch.setattr(purchase_order_dispatch.BusinessCentralConfig, "from_env", lambda: type(
         "Config", (), {"validate": lambda self: None},
@@ -159,12 +161,202 @@ def test_sandbox_proposal_requires_human_approval_and_never_dispatches(api, monk
     assert decision.status_code == 200
     assert decision.json()["dispatch"]["status"] == "held"
     response = client.post(f"/api/approvals/{approval_id}/dispatch")
-    assert response.status_code == 422
-    assert "cannot be dispatched" in response.json()["detail"]
+    assert response.status_code == 503
+    assert "dispatch is disabled" in response.json()["detail"]
     with sessions() as db:
         dispatch = db.get(PurchaseOrderDispatch, approval_id)
         assert dispatch.status == "held"
         assert dispatch.approved_payload["sandbox_test"] is True
+        assert dispatch.attempt is None
+
+
+def prepare_sandbox_dispatch(api, monkeypatch):
+    client, sessions, _ = api
+    monkeypatch.setenv("SANDBOX_PROPOSALS_ENABLED", "true")
+    response = client.post("/api/sandbox/proposals")
+    approval_id = response.json()["approval"]["id"]
+    assert client.post(f"/api/approvals/{approval_id}/decision", json={"decision": "approved"}).status_code == 200
+    monkeypatch.setenv("BC_DISPATCH_ENABLED", "true")
+    monkeypatch.setenv("BC_SANDBOX_DISPATCH_ENABLED", "true")
+    monkeypatch.setattr(purchase_order_dispatch, "settings", SimpleNamespace(auth_enabled=True))
+    config = purchase_order_dispatch.BusinessCentralConfig(
+        tenant_id="8d132419-f288-4bcb-b3b9-42e1ffc6d824",
+        environment="InventarMind",
+        company_id="6ecc6e3d-f6bb-f111-85be-7c1e52401c43",
+        client_id="11111111-1111-4111-8111-111111111111",
+        client_secret="test-secret",
+        local_currency="EUR",
+        writes_enabled=True,
+    )
+    monkeypatch.setattr(purchase_order_dispatch.BusinessCentralConfig, "from_env", lambda: config)
+    return client, sessions, approval_id, config
+
+
+def test_sandbox_verification_failure_leaves_handoff_held(api, monkeypatch):
+    client, sessions, approval_id, _ = prepare_sandbox_dispatch(api, monkeypatch)
+
+    def fail_verification(config, credentials):
+        raise purchase_order_dispatch.SandboxVerificationError("Admin Center unavailable")
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("No client should be created before successful verification")
+
+    monkeypatch.setattr(purchase_order_dispatch, "verify_sandbox_target", fail_verification)
+    monkeypatch.setattr(purchase_order_dispatch, "BusinessCentralClient", forbidden)
+    for _ in range(2):
+        response = client.post(f"/api/approvals/{approval_id}/dispatch")
+        assert response.status_code == 503
+        assert "no order was sent" in response.json()["detail"]
+    with sessions() as db:
+        dispatch = db.get(PurchaseOrderDispatch, approval_id)
+        assert dispatch.status == "held"
+        assert dispatch.attempt is None
+
+
+@pytest.mark.parametrize("failure", ["wrong_target", "production", "inactive", "network"])
+def test_sandbox_real_verifier_failure_never_claims_handoff(api, monkeypatch, failure):
+    client, sessions, approval_id, config = prepare_sandbox_dispatch(api, monkeypatch)
+    if failure == "wrong_target":
+        from dataclasses import replace
+
+        config = replace(config, company_id="33333333-3333-4333-8333-333333333333")
+        monkeypatch.setattr(purchase_order_dispatch.BusinessCentralConfig, "from_env", lambda: config)
+    credentials = purchase_order_dispatch.SandboxVerifierCredentials(
+        "22222222-2222-4222-8222-222222222222", "verifier-secret",
+    )
+    monkeypatch.setattr(
+        purchase_order_dispatch.SandboxVerifierCredentials, "from_env", lambda: credentials,
+    )
+    calls = []
+
+    def handle(request):
+        calls.append(request.method)
+        if failure == "network":
+            raise httpx.ConnectError("unavailable", request=request)
+        if request.method == "POST":
+            return httpx.Response(200, json={"access_token": "test-token"})
+        return httpx.Response(200, json={
+            "name": "InventarMind",
+            "applicationFamily": "BusinessCentral",
+            "aadTenantId": EXPECTED_TENANT_ID,
+            "type": "Production" if failure == "production" else "Sandbox",
+            "status": "NotReady" if failure == "inactive" else "Active",
+        })
+
+    transport = httpx.MockTransport(handle)
+    monkeypatch.setattr(
+        purchase_order_dispatch, "verify_sandbox_target",
+        lambda actual_config, actual_credentials: verify_sandbox_target(
+            actual_config, actual_credentials, transport=transport,
+        ),
+    )
+    monkeypatch.setattr(
+        purchase_order_dispatch, "BusinessCentralClient",
+        lambda *args: pytest.fail("A failed preflight must not create a client"),
+    )
+    response = client.post(f"/api/approvals/{approval_id}/dispatch")
+    assert response.status_code == 503
+    assert calls == ([] if failure == "wrong_target" else ["POST"] if failure == "network" else ["POST", "GET"])
+    with sessions() as db:
+        dispatch = db.get(PurchaseOrderDispatch, approval_id)
+        assert dispatch.status == "held"
+        assert dispatch.attempt is None
+
+
+def test_concurrent_claim_after_sandbox_verification_prevents_write(api, monkeypatch):
+    client, sessions, approval_id, _ = prepare_sandbox_dispatch(api, monkeypatch)
+
+    def another_claim(*args):
+        with sessions() as db:
+            db.get(PurchaseOrderDispatch, approval_id).status = "in_progress"
+            db.commit()
+
+    monkeypatch.setattr(purchase_order_dispatch, "verify_sandbox_target", another_claim)
+    monkeypatch.setattr(
+        purchase_order_dispatch, "BusinessCentralClient",
+        lambda *args: pytest.fail("A lost claim must not create a client"),
+    )
+    assert client.post(f"/api/approvals/{approval_id}/dispatch").status_code == 409
+    with sessions() as db:
+        assert db.get(PurchaseOrderDispatch, approval_id).attempt is None
+
+
+def test_sandbox_dispatch_verifies_same_snapshot_and_sends_only_once(api, monkeypatch):
+    client, sessions, approval_id, config = prepare_sandbox_dispatch(api, monkeypatch)
+    events = []
+
+    def verify(actual_config, credentials):
+        assert actual_config is config
+        events.append("verified")
+        monkeypatch.setattr(purchase_order_dispatch.BusinessCentralConfig, "from_env", lambda: None)
+
+    class FakeClient:
+        def __init__(self, actual_config):
+            assert actual_config is config
+            events.append("client")
+
+        def create_draft_purchase_order(self, payload, *, on_order_created, reject_existing):
+            events.append("send")
+            assert payload["vendor_id"] == "V00010"
+            assert payload["currency"] == "EUR"
+            assert payload["lines"][0]["sku"] == "1000"
+            assert payload["lines"][0]["quantity"] == 10
+            assert payload["lines"][0]["unit_price"] == 5.0
+            assert reject_existing is True
+            on_order_created("order-id")
+            return {"erp_status": "Draft", "erp_po_id": "order-id",
+                    "po_number": "PO-123", "total_matches": True, "duplicate": False}
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(purchase_order_dispatch, "verify_sandbox_target", verify)
+    monkeypatch.setattr(purchase_order_dispatch, "BusinessCentralClient", FakeClient)
+    response = client.post(f"/api/approvals/{approval_id}/dispatch")
+    assert response.status_code == 200
+    assert events == ["verified", "client", "send"]
+    with sessions() as db:
+        assert db.get(PurchaseOrderDispatch, approval_id).status == "created"
+
+
+@pytest.mark.parametrize("change", ["vendor", "item", "quantity", "cost", "location", "date", "marker", "malformed"])
+def test_sandbox_dispatch_rejects_modified_test_facts_before_verification(api, monkeypatch, change):
+    client, sessions, approval_id, _ = prepare_sandbox_dispatch(api, monkeypatch)
+    with sessions() as db:
+        dispatch = db.get(PurchaseOrderDispatch, approval_id)
+        payload = dict(dispatch.approved_payload)
+        draft = dict(payload["po_draft"])
+        line = dict(draft["lines"][0])
+        if change == "vendor":
+            payload["selected_vendor_id"] = draft["vendor_id"] = "OTHER"
+        elif change == "item":
+            payload["sku"] = line["sku"] = "OTHER"
+        elif change == "quantity":
+            payload["reorder_quantity"] = line["quantity"] = 1
+            payload["total_estimated_cost"] = 5.0
+        elif change == "cost":
+            payload["unit_cost"] = line["unit_price"] = 1.0
+            payload["total_estimated_cost"] = 10.0
+        elif change == "location":
+            draft["ship_to_warehouse_id"] = "OTHER"
+        elif change == "date":
+            draft["requested_delivery_date"] = "2030-01-01"
+        elif change == "marker":
+            payload["sandbox_test"] = False
+        else:
+            payload["sandbox_test"] = "true"
+        draft["lines"] = [line]
+        payload["po_draft"] = draft
+        dispatch.approved_payload = payload
+        db.commit()
+    monkeypatch.setattr(
+        purchase_order_dispatch, "verify_sandbox_target",
+        lambda *args: pytest.fail("Invalid test facts must fail before verification"),
+    )
+    assert client.post(f"/api/approvals/{approval_id}/dispatch").status_code == 422
+    with sessions() as db:
+        dispatch = db.get(PurchaseOrderDispatch, approval_id)
+        assert dispatch.status == "held"
         assert dispatch.attempt is None
 
 
@@ -246,10 +438,13 @@ def test_non_approver_cannot_dispatch(api, monkeypatch):
 
 @pytest.mark.parametrize("currency", ["USD", "EUR"])
 def test_dispatch_records_result_and_only_runs_once(api, monkeypatch, currency):
-    client, sessions, approval_id = prepare_dispatch(api, monkeypatch, currency=currency)
+    client, _, approval_id = prepare_dispatch(api, monkeypatch, currency=currency)
     calls = []
 
     class FakeClient:
+        def __init__(self, config):
+            self.config = config
+
         def create_draft_purchase_order(self, payload, *, on_order_created, reject_existing):
             calls.append(payload)
             assert reject_existing is True
@@ -278,6 +473,9 @@ def test_uncertain_failure_never_retries(api, monkeypatch, after_header):
     calls = []
 
     class FakeClient:
+        def __init__(self, config):
+            self.config = config
+
         def create_draft_purchase_order(self, payload, *, on_order_created, reject_existing):
             calls.append(payload)
             if after_header:

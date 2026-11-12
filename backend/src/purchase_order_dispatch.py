@@ -13,18 +13,20 @@ from agents.guardrails.deterministic import requires_escalated_review
 from agents.tools.business_central import BusinessCentralClient, BusinessCentralConfig
 from src.config.settings import settings
 from src.models import Approval, PurchaseOrderDispatch, PurchaseOrderDispatchAttempt
+from src.sandbox_target import (
+    SandboxVerificationError,
+    SandboxVerifierCredentials,
+    verify_sandbox_target,
+)
 
 logger = logging.getLogger(__name__)
 
 
 def _validated_draft(dispatch: PurchaseOrderDispatch) -> dict[str, Any]:
     state = dispatch.approved_payload
-    if state.get("sandbox_test") is True:
-        raise HTTPException(
-            status_code=422,
-            detail="Sandbox test proposals cannot be dispatched; no order was sent",
-        )
     try:
+        if "sandbox_test" in state and not isinstance(state["sandbox_test"], bool):
+            raise ValueError("Invalid sandbox test marker")
         po = PurchaseOrderDraft.model_validate(state["po_draft"])
         if (
             state.get("sourcing_strategy") != "VENDOR_PO"
@@ -46,6 +48,16 @@ def _validated_draft(dispatch: PurchaseOrderDispatch) -> dict[str, Any]:
             or requires_escalated_review(po.total_amount)
         ):
             raise ValueError("Draft requires additional currency or value review")
+        if state.get("sandbox_test") is True and (
+            po.vendor_id != "V00010"
+            or po.lines[0].sku != "1000"
+            or po.lines[0].quantity != 10
+            or po.lines[0].unit_price != 5.0
+            or po.currency != "EUR"
+            or po.ship_to_warehouse_id is not None
+            or po.requested_delivery_date is not None
+        ):
+            raise ValueError("Sandbox test draft does not match the approved test facts")
     except (KeyError, TypeError, ValidationError, ValueError, OverflowError) as error:
         raise HTTPException(
             status_code=422,
@@ -68,7 +80,8 @@ def dispatch_held_order(db: Session, approval_id: str, user_subject: str) -> Pur
             detail="Purchase order dispatch is disabled",
         )
     try:
-        BusinessCentralConfig.from_env().validate()
+        config = BusinessCentralConfig.from_env()
+        config.validate()
     except NotImplementedError as error:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error)) from error
 
@@ -78,7 +91,21 @@ def dispatch_held_order(db: Session, approval_id: str, user_subject: str) -> Pur
     approval = db.get(Approval, approval_id)
     if approval is None or approval.status != "approved" or dispatch.status != "held":
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="PO handoff is not dispatchable")
+    if approval.payload.get("sandbox_test") is True and dispatch.approved_payload.get("sandbox_test") is not True:
+        raise HTTPException(status_code=422, detail="Sandbox test marker is inconsistent; no order was sent")
     payload = _validated_draft(dispatch)
+
+    if dispatch.approved_payload.get("sandbox_test") is True:
+        if os.getenv("BC_SANDBOX_DISPATCH_ENABLED", "false").strip().lower() not in {"1", "true", "yes"}:
+            raise HTTPException(status_code=503, detail="Sandbox test dispatch is disabled; no order was sent")
+        try:
+            verify_sandbox_target(config, SandboxVerifierCredentials.from_env())
+        except SandboxVerificationError as error:
+            logger.warning("Sandbox target verification failed for approval %s: %s", approval_id, error)
+            raise HTTPException(
+                status_code=503,
+                detail="Sandbox target verification failed; no order was sent",
+            ) from error
 
     claimed = db.execute(
         update(PurchaseOrderDispatch)
@@ -101,7 +128,7 @@ def dispatch_held_order(db: Session, approval_id: str, user_subject: str) -> Pur
         db.commit()
 
     try:
-        client = BusinessCentralClient()
+        client = BusinessCentralClient(config)
         try:
             result = client.create_draft_purchase_order(
                 payload, on_order_created=save_header, reject_existing=True,

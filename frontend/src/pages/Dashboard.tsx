@@ -54,7 +54,7 @@ export function Dashboard({ account }: DashboardProps) {
     setNotice("");
     try {
       await apiRequest("/api/sandbox/proposals", account, { method: "POST" });
-      setNotice("Sandbox test proposal added to the approval queue. It cannot be dispatched.");
+      setNotice("Sandbox test proposal added to the approval queue. Dispatch requires separate enablement and target verification.");
       await refresh();
     } catch (reason) {
       setNotice(reason instanceof Error ? reason.message : "Sandbox proposal could not be created.");
@@ -95,7 +95,7 @@ export function Dashboard({ account }: DashboardProps) {
           <p className="eyebrow">SANDBOX TEST ONLY</p>
           <h2>Prepare a test proposal</h2>
           <p>Vendor V00010, item 1000: 10 units at EUR 5.00 each (EUR 50.00 before tax).</p>
-          <p className="muted">The price is a test assumption, not a vendor quote. This proposal cannot be dispatched to Business Central.</p>
+          <p className="muted">The price is a test assumption, not a vendor quote. Dispatch requires separate enablement and sandbox target verification.</p>
           <button className="button button-muted" disabled={sandboxBusy} onClick={() => void createSandboxProposal()}>
             {sandboxBusy ? "Creating..." : "Create sandbox test proposal"}
           </button>
