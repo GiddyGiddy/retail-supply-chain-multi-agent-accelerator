@@ -230,6 +230,15 @@ resource "azurerm_container_app" "api" {
     }
   }
 
+  dynamic "secret" {
+    for_each = var.bc_sandbox_verifier == null ? [] : [var.bc_sandbox_verifier]
+    content {
+      name                = "bc-sandbox-verifier-secret"
+      key_vault_secret_id = "${azurerm_key_vault.main.vault_uri}secrets/${secret.value.secret_name}"
+      identity            = azurerm_user_assigned_identity.api.id
+    }
+  }
+
   ingress {
     external_enabled = true
     target_port      = 8000
@@ -241,14 +250,46 @@ resource "azurerm_container_app" "api" {
   }
 
   template {
-    min_replicas = 1
-    max_replicas = 3
+    min_replicas                     = 1
+    max_replicas                     = 3
+    termination_grace_period_seconds = 30
+
+    http_scale_rule {
+      name                = "http-scaler"
+      concurrent_requests = "10"
+    }
 
     container {
       name   = "api"
       image  = var.api_image
       cpu    = 0.5
       memory = "1Gi"
+
+      liveness_probe {
+        transport               = "TCP"
+        port                    = 8000
+        initial_delay           = 0
+        interval_seconds        = 10
+        timeout                 = 5
+        failure_count_threshold = 3
+      }
+      readiness_probe {
+        transport               = "TCP"
+        port                    = 8000
+        initial_delay           = 0
+        interval_seconds        = 5
+        timeout                 = 5
+        failure_count_threshold = 48
+        success_count_threshold = 1
+      }
+      startup_probe {
+        transport               = "TCP"
+        port                    = 8000
+        initial_delay           = 1
+        interval_seconds        = 1
+        timeout                 = 3
+        failure_count_threshold = 240
+      }
 
       env {
         name        = "DATABASE_URL"
@@ -297,6 +338,35 @@ resource "azurerm_container_app" "api" {
       env {
         name  = "BC_WRITES_ENABLED"
         value = "false"
+      }
+      env {
+        name  = "BC_DISPATCH_ENABLED"
+        value = "false"
+      }
+      env {
+        name  = "SANDBOX_PROPOSALS_ENABLED"
+        value = tostring(var.sandbox_proposals_enabled)
+      }
+      dynamic "env" {
+        for_each = var.bc_sandbox_verifier == null ? {} : {
+          BC_TENANT_ID                  = var.bc_sandbox_verifier.tenant_id
+          BC_ENVIRONMENT                = var.bc_sandbox_verifier.environment
+          BC_COMPANY_ID                 = var.bc_sandbox_verifier.company_id
+          BC_CLIENT_ID                  = var.bc_sandbox_verifier.purchasing_client_id
+          BC_LOCAL_CURRENCY             = var.bc_sandbox_verifier.local_currency
+          BC_SANDBOX_VERIFIER_CLIENT_ID = var.bc_sandbox_verifier.verifier_client_id
+        }
+        content {
+          name  = env.key
+          value = env.value
+        }
+      }
+      dynamic "env" {
+        for_each = var.bc_sandbox_verifier == null ? [] : [var.bc_sandbox_verifier]
+        content {
+          name        = "BC_SANDBOX_VERIFIER_CLIENT_SECRET"
+          secret_name = "bc-sandbox-verifier-secret"
+        }
       }
     }
   }

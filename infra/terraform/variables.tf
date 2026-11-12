@@ -74,6 +74,40 @@ variable "entra_api_client_id" {
   default     = ""
 }
 
+variable "sandbox_proposals_enabled" {
+  description = "Enable creation of sandbox-only proposals; this does not enable Business Central dispatch."
+  type        = bool
+  default     = false
+}
+
+variable "bc_sandbox_verifier" {
+  description = "Optional sandbox target and separate verifier identity. The verifier secret must already exist in this deployment's Key Vault."
+  type = object({
+    tenant_id            = string
+    environment          = string
+    company_id           = string
+    purchasing_client_id = string
+    verifier_client_id   = string
+    secret_name          = string
+    local_currency       = string
+  })
+  default = null
+
+  validation {
+    condition = var.bc_sandbox_verifier == null ? true : (
+      can(regex("^[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}$", var.bc_sandbox_verifier.tenant_id)) &&
+      can(regex("^[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}$", var.bc_sandbox_verifier.company_id)) &&
+      can(regex("^[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}$", var.bc_sandbox_verifier.purchasing_client_id)) &&
+      can(regex("^[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}$", var.bc_sandbox_verifier.verifier_client_id)) &&
+      lower(var.bc_sandbox_verifier.verifier_client_id) != lower(var.bc_sandbox_verifier.purchasing_client_id) &&
+      can(regex("^[a-zA-Z0-9-]{1,127}$", var.bc_sandbox_verifier.secret_name)) &&
+      can(regex("^[A-Za-z0-9_-]{1,40}$", var.bc_sandbox_verifier.environment)) &&
+      can(regex("^[A-Z]{3}$", var.bc_sandbox_verifier.local_currency))
+    )
+    error_message = "Provide valid sandbox target IDs, a separate verifier client ID, a Key Vault secret name, environment and currency."
+  }
+}
+
 variable "api_image" {
   description = "Initial API image. CI/CD replaces it after the first deployment."
   type        = string

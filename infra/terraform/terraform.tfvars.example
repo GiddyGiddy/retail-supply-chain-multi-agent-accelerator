@@ -10,3 +10,16 @@ postgres_admin_username = "supplyadmin"
 # Filled in after the Entra app registrations exist (step 5):
 # entra_tenant_id     = "fd58bbca-b54d-436b-a7bc-3cb0e2c1181a"
 # entra_api_client_id = "<api app client id>"
+
+# Optional sandbox proposal and read-only verification. Create the named
+# Key Vault secret outside Terraform before applying; never put its value here.
+# sandbox_proposals_enabled = true
+# bc_sandbox_verifier = {
+#   tenant_id            = "<business central tenant id>"
+#   environment          = "<sandbox environment name>"
+#   company_id           = "<sandbox company id>"
+#   purchasing_client_id = "<business central integration app client id>"
+#   verifier_client_id   = "<separate verifier app client id>"
+#   secret_name          = "bc-sandbox-verifier-client-secret"
+#   local_currency       = "EUR"
+# }
