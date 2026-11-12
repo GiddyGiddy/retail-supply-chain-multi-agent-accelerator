@@ -68,6 +68,7 @@ test("successful dispatch is sent once and shows the draft number", async ({ pag
   page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Send test draft to Business Central" }).click();
   await expect(page.getByRole("status")).toContainText("PO-123");
+  await expect(page.getByText("Business Central draft confirmed: PO-123")).toBeVisible();
   await expect(page.getByText("PO handoff: created", { exact: false })).toBeVisible();
   await expect(page.getByRole("button", { name: "Send test draft to Business Central" })).toHaveCount(0);
   expect(calls).toBe(1);
@@ -187,7 +188,13 @@ test("existing draft recovery requires confirmation and performs only the recove
   await button.click();
   await expect(page.getByRole("status")).toContainText("106001");
   await expect(page.getByText("Draft recovery: created", { exact: false })).toBeVisible();
+  await expect(page.getByText("Business Central draft confirmed: 106001")).toBeVisible();
+  await expect(page.getByText("Recorded as a draft; not released or posted by InventarMind.")).toBeVisible();
   await expect(button).toHaveCount(0);
+  expect(recoveries).toBe(1);
+  await page.reload();
+  await expect(page.getByText("Business Central draft confirmed: 106001")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Complete existing sandbox draft" })).toHaveCount(0);
   expect(recoveries).toBe(1);
 });
 
@@ -212,6 +219,7 @@ test("failed draft recovery stays locked and offers no retry", async ({ page }) 
   page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Complete existing sandbox draft" }).click();
   await expect(page.getByRole("alert")).toContainText("do not retry");
+  await expect(page.getByText("Business Central draft confirmed:", { exact: false })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Complete existing sandbox draft" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Reconcile no order found" })).toHaveCount(0);
   expect(recoveries).toBe(1);
