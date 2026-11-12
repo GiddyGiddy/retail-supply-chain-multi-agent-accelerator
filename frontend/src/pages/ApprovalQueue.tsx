@@ -140,6 +140,43 @@ export function ApprovalQueue({ account }: ApprovalQueueProps) {
     }
   }
 
+  async function recover(approval: Approval) {
+    const attempt = approval.dispatch?.attempt;
+    if (busyId !== null || dispatching.current || !attempt?.erp_order_id) return;
+    if (!window.confirm(
+      `Complete existing sandbox draft ID ${attempt.erp_order_id}?\n` +
+      `Reference: ${approval.dispatch?.reference}\n` +
+      "Company ID: 6ecc6e3d-f6bb-f111-85be-7c1e52401c43.\n" +
+      "Add item 1000, 10 units at EUR 5.00 (EUR 50.00 before tax). No order will be released or posted.\n\n" +
+      "Confirm no one else is editing this draft or its lines during recovery. " +
+      "The API cannot lock Business Central against other users. Only one recovery attempt is allowed; " +
+      "an uncertain result requires manual review, not a retry.",
+    )) return;
+    dispatching.current = true;
+    setBusyId(approval.id);
+    setNotice("");
+    setDispatchError("");
+    try {
+      const result = await apiRequest<PurchaseOrderDispatch>(
+        `/api/approvals/${approval.id}/recover-sandbox-draft`, account,
+        { method: "POST", body: JSON.stringify({
+          confirmed_exclusive_access: true, erp_order_id: attempt.erp_order_id,
+          attempt_started_at: attempt.started_at,
+        }) },
+      );
+      if (result.status !== "created" || !result.attempt?.erp_order_number || result.recovery?.outcome !== "created") {
+        throw new Error("The response did not confirm the completed draft.");
+      }
+      setNotice(`Existing Business Central draft completed: ${result.attempt.erp_order_number}`);
+    } catch (reason) {
+      setDispatchError(`${reason instanceof Error ? reason.message : "Draft recovery failed."} Check Business Central and the handoff; do not retry.`);
+    } finally {
+      await refresh();
+      dispatching.current = false;
+      setBusyId(null);
+    }
+  }
+
   return (
     <main className="page">
       <div className="page-heading">
@@ -161,7 +198,8 @@ export function ApprovalQueue({ account }: ApprovalQueueProps) {
           <ApprovalTable approvals={approvals} busyId={busyId} attemptedIds={attemptedIds}
             onDecision={(approval, decision) => void decide(approval.id, decision)}
             onDispatch={(approval) => void dispatch(approval)}
-            onReconcile={(approval) => void reconcile(approval)} />
+            onReconcile={(approval) => void reconcile(approval)}
+            onRecover={(approval) => void recover(approval)} />
         )}
       </section>
     </main>

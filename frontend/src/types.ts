@@ -8,6 +8,7 @@ export interface PurchaseOrderDispatch {
     erp_order_id: string | null; erp_order_number: string | null;
     reconciled_by: string; reconciled_at: string; evidence: string;
   }[];
+  recovery: { erp_order_id: string; started_by: string; started_at: string; finished_at: string | null; outcome: string } | null;
 }
 
 export interface Approval {

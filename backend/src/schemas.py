@@ -41,6 +41,22 @@ class PurchaseOrderReconciliationResponse(PurchaseOrderDispatchAttemptResponse):
     evidence: str
 
 
+class PurchaseOrderDraftRecoveryRequest(BaseModel):
+    confirmed_exclusive_access: Literal[True]
+    erp_order_id: str = Field(min_length=36, max_length=36)
+    attempt_started_at: datetime
+
+
+class PurchaseOrderDraftRecoveryResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    erp_order_id: str
+    started_by: str
+    started_at: datetime
+    finished_at: datetime | None
+    outcome: str
+
+
 class PurchaseOrderDispatchResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -49,6 +65,7 @@ class PurchaseOrderDispatchResponse(BaseModel):
     approved_at: datetime
     attempt: PurchaseOrderDispatchAttemptResponse | None = None
     reconciliations: list[PurchaseOrderReconciliationResponse] = Field(default_factory=list)
+    recovery: PurchaseOrderDraftRecoveryResponse | None = None
 
 
 class ApprovalResponse(BaseModel):

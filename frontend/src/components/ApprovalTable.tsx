@@ -5,11 +5,12 @@ interface ApprovalTableProps {
   onDecision: (approval: Approval, decision: "approved" | "rejected") => void;
   onDispatch: (approval: Approval) => void;
   onReconcile: (approval: Approval) => void;
+  onRecover: (approval: Approval) => void;
   attemptedIds: ReadonlySet<string>;
   busyId: string | null;
 }
 
-export function ApprovalTable({ approvals, onDecision, onDispatch, onReconcile, attemptedIds, busyId }: ApprovalTableProps) {
+export function ApprovalTable({ approvals, onDecision, onDispatch, onReconcile, onRecover, attemptedIds, busyId }: ApprovalTableProps) {
   if (approvals.length === 0) {
     return <div className="empty-state">No proposals yet. Run the agent workflow to create one.</div>;
   }
@@ -40,6 +41,7 @@ export function ApprovalTable({ approvals, onDecision, onDispatch, onReconcile, 
                     {approval.dispatch.status === "held" && !attemptedIds.has(approval.id) && " (not sent to Business Central)"}
                     {approval.payload.sandbox_test === true && " — sandbox test; dispatch requires separate enablement and verification"}
                     {approval.dispatch.status === "in_progress" && " (in progress; check before retrying)"}
+                    {approval.dispatch.status === "recovery_in_progress" && " (recovery in progress; do not retry)"}
                     {approval.dispatch.status === "needs_review" && " (manual reconciliation required)"}
                     {approval.dispatch.attempt?.erp_order_number && `: ${approval.dispatch.attempt.erp_order_number}`}
                   </span>
@@ -50,6 +52,12 @@ export function ApprovalTable({ approvals, onDecision, onDispatch, onReconcile, 
                     {" "}{record.evidence}
                   </span>
                 ))}
+                {approval.dispatch?.recovery && (
+                  <span className="table-summary">
+                    Draft recovery: {approval.dispatch.recovery.outcome} by {approval.dispatch.recovery.started_by}
+                    {" "}on {new Date(approval.dispatch.recovery.started_at).toLocaleString()}
+                  </span>
+                )}
               </td>
               <td>{new Date(approval.created_at).toLocaleString()}</td>
               <td>
@@ -62,6 +70,13 @@ export function ApprovalTable({ approvals, onDecision, onDispatch, onReconcile, 
                   approval.dispatch?.status === "held" && !attemptedIds.has(approval.id) ? (
                     <button className="button button-small" disabled={busyId !== null} onClick={() => onDispatch(approval)}>
                       Send test draft to Business Central
+                    </button>
+                ) : approval.status === "approved" && approval.payload.sandbox_test === true &&
+                  approval.dispatch?.status === "needs_review" && approval.dispatch.attempt &&
+                  approval.dispatch.attempt.outcome === "needs_review" &&
+                  approval.dispatch.attempt.erp_order_id && !approval.dispatch.recovery ? (
+                    <button className="button button-small button-muted" disabled={busyId !== null} onClick={() => onRecover(approval)}>
+                      Complete existing sandbox draft
                     </button>
                 ) : approval.status === "approved" && approval.payload.sandbox_test === true &&
                   approval.dispatch?.status === "needs_review" && approval.dispatch.attempt &&
